@@ -451,7 +451,15 @@ export function createRenderer(canvas) {
     }
     context.fillStyle = '#fff6e0';
     context.fillRect(fx - 70, FIELD.groundY - 80, 140, 8);
-    text('FREEDOM', fx - 20, FIELD.groundY - 132, 26, '#ffd23e', 'center', '900');
+    // The label sits LEFT of the gate (centred on fx-140), not on it:
+    // at the finish the hero turkey stands right in front of the
+    // gate at 1.4x, and centred text was 77% covered by the bird —
+    // only "FR" showed. Out here it reads over open sky, clear of
+    // the turkey, the farmer (left edge) and the score panel, and it
+    // still belongs to the gate it names. In the last 130 m of a run
+    // the gate slides in from the right and the label travels with
+    // it, always on the approach side.
+    text('FREEDOM', fx - 140, FIELD.groundY - 132, 26, '#ffd23e', 'center', '900');
   }
 
   // ---- hazards and pickups ----

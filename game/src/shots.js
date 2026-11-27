@@ -161,18 +161,22 @@ export function stageShot(name, world) {
     return { screen: SCREEN_TITLE, best: 0 };
   }
   if (name === 'play') {
-    // The cover runs on seed 57 (not 54): the new oven-under pick
-    // (see airOven below) keeps the highest leap where an oven sits
-    // under the bird, and seed 57's is the cleanest of the eight
-    // seeds that have one with a near knife and a combo — 24.2 s,
-    // 445 pts, 205 m, COMBO x2, knife 68 px off the feet just below
-    // the bird over the oven's flames, 4 lives. Seed 69 has a bigger
-    // combo (x5) and a closer knife (51 px) but its knife is low and
-    // half-hidden across the oven, and a shield ring circles the
-    // bird; seed 54 (round 12) has the knife at head height and
-    // COMBO x4, but the bird jumps a fence with the ovens far down
-    // the road. Same pick rules, same autopilot; only the seed
-    // changed, so no gameplay code moved.
+    // The cover runs on seed 238 (not 57): a 300-seed probe of
+    // the oven-under pick (round 14, /tmp/probe-r14.mjs) found 13
+    // clean frames (near knife + combo>=2 + no shield ring), and
+    // 238 tops them by score — 28.7 s, 1723 pts, 243 m, COMBO x5,
+    // 4 lives, knife 2-D 223 px off the bird at the farmer's feet
+    // with its trail, two whole ovens with flames and labels. The
+    // oven sits just ahead-right of the feet rather than dead
+    // under them (57's was dead under, knife 68 px at the feet),
+    // but the score is 3.9x and the combo 2.5x, and the frame is
+    // otherwise clean — no label occluded, nothing clipped at an
+    // edge. Runner-up 207 (771 pts, COMBO x5) has a bigger knife
+    // by the farmer but less than half the score; 143 (698, x4)
+    // has a pumpkin over its OVEN! label and a clipped HIDE at
+    // the right edge; 133 (755, x3) has no visible knife at all.
+    // Same pick rules, same autopilot; only the seed changed, so
+    // no gameplay code moved.
     // One 40 s pass, keeping the frame where the chase was closest —
     // the farmer in frame behind the turkey — with something to dodge
     // ahead. The airborne frame wins over the merely close one: a
