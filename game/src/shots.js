@@ -231,47 +231,62 @@ export function stageShot(name, world) {
     return { screen: SCREEN_PLAY, best: Math.floor(world.state.score) };
   }
   if (name === 'danger') {
-    // Stop at the tensest frame: an oven close ahead with a knife in the
-    // air, or the farmer nearly on the turkey while a knife flies — or
-    // take what the run gives. Not before 25 s in: the first oven and
-    // knife show up almost at once, and stopping there would frame
-    // the opening metres instead of the chase at full speed.
-    // The danger seed is 19 (not 7): a 2-D probe of seeds 1..150
-    // found seed 7's picked frame ranks only 71st of 113 — its knife
-    // is a low blade 141 px from the bird, out by the farmer — while
-    // seed 19's knife is a high blade 47 px below the turkey's feet
-    // (the structural floor: a high knife at y=108 flies 47 px under
-    // feet at y=155), oven directly under the bird, 3265 pts, 665 m.
-    // The turkey must be properly airborne over the oven: the old
-    // frame caught it standing on the ground right at the oven, body
-    // pressed against the flames, so it read as a turkey being
-    // roasted instead of one dodging. Feet 150 px up leave clear
-    // sky between the bird and the flame tongues, with the head
-    // against open sky instead of the oven or a tree behind it. The
-    // floor is 150, not 120: in the one jump the run offers, the
-    // knife behind the turkey is closest late in the jump, and the
-    // bird is higher over the oven too — the probe found only seven
-    // candidate frames in 90 s, all in the same jump, so the later
-    // frame is strictly the better one.
-    runFor(world, DANGER_LIMIT_SECONDS, HORIZON_PLAY, (s) => {
-      if (s.elapsed < 25) return false;
-      // The turkey's head must stay clear of the HUD bar: at the top
-      // of a full leap it slides behind the bar and reads as
-      // decapitated, so apex frames are skipped for a beat later in
-      // the same jump, when the bird has dropped back into the open sky.
-      // The cap is 185, not 200, for the same reason as the play
-      // frame: the bird is drawn 12% bigger since round 6.
-      if (s.player.y < 150 || s.player.y >= 185) return false;
-      let ovenNear = false;
-      let knifeNear = false;
+    // Knife-distance-first pick (finals round 21): scan the whole 90 s
+    // and keep the frame where a knife is CLOSEST to the turkey — true
+    // 2-D centre-to-body-rect distance — among frames where the turkey
+    // is airborne over an oven. The old rule (first frame with y>=150)
+    // always landed on the same structural geometry: a high knife flies
+    // at a fixed height (y=108), so the first y>=150 frame in a jump is
+    // always the same relative position — 47 px under the feet. A
+    // 500-seed probe of the new rule (probe-danger-r21) shows the floor
+    // is the same for every seed: no seed has a knife at body/beak level
+    // while airborne over an oven (a high knife can only be at feet
+    // level or below, a low knife is 120+ px under the feet), so the
+    // closest a knife ever gets is ~16 px, grazing the feet at y~124
+    // on the way up — and that frame is what the new rule keeps. The
+    // floor is 120, not 100: at y=120 the feet are still ~64 px above
+    // the oven's top, clear of the flame tongues, and the head (top
+    // ~193) stays well clear of the HUD bar. Ties within 3 px prefer
+    // the higher score. Falls back to the end of the run if no oven
+    // leap with a knife ever happens (417/500 seeds have one).
+    // The danger seed is 249 (not 19): under the new rule both stage
+    // the same grazing geometry (16 px under the feet, y~124), but 249
+    // scores 3585 to 19's 3264, carries COMBO x2 to 19's x0, and has
+    // 2 lives left to 19's 3 — the same knife story, better numbers,
+    // one life closer to the pot. Seed 62 (3352, stage 2 riverbank)
+    // was the runner-up; its blue palette would change the frame's
+    // whole colour story, and its combo is x0.
+    let bestSnap = null;
+    let bestDist = Infinity;
+    let bestScore = -1;
+    const steps = Math.floor(DANGER_LIMIT_SECONDS / STEP);
+    for (let i = 0; i < steps; i += 1) {
+      const events = world.step(STEP, autopilot(world.state, HORIZON_PLAY), false);
+      const s = world.state;
+      if (events & (EVENT_OVER | EVENT_ESCAPED)) break;
+      if (s.elapsed < 25) continue;
+      const y = s.player.y;
+      if (y < 120 || y >= 185 || !ovenUnder(s)) continue;
+      const top = FIELD.groundY - TURKEY.height - y;
+      const bot = FIELD.groundY - y;
       for (const e of s.entities) {
-        if (!e.active) continue;
+        if (!e.active || e.kind !== KIND_KNIFE) continue;
         const d = e.x - s.distance;
-        if (e.kind === KIND_OVEN && d > 0 && d < 9) ovenNear = true;
-        if (e.kind === KIND_KNIFE && d > -6 && d < 14) knifeNear = true;
+        if (d < -6 || d > 14) continue;
+        const sx = TURKEY_X + d * PX_PER_M;
+        const cy = FIELD.groundY - e.y;
+        if (sx < -40 || sx > FIELD.width + 40 || cy < 0 || cy > FIELD.height) continue;
+        const dx = sx < TURKEY_X ? TURKEY_X - sx : sx > TURKEY_X + TURKEY.width ? sx - (TURKEY_X + TURKEY.width) : 0;
+        const dy = cy < top ? top - cy : cy > bot ? cy - bot : 0;
+        const dist = Math.hypot(dx, dy);
+        if (dist < bestDist - 3 || (Math.abs(dist - bestDist) <= 3 && s.score > bestScore)) {
+          bestDist = dist;
+          bestScore = s.score;
+          bestSnap = snapshotState(s);
+        }
       }
-      return (ovenNear && knifeNear) || (knifeNear && s.farmer.gap < 16);
-    });
+    }
+    if (bestSnap !== null) restoreState(world.state, bestSnap);
     return { screen: SCREEN_PLAY, best: Math.floor(world.state.score) };
   }
   // End: a short-sighted pilot on the shot's seed. Seed 159 escapes

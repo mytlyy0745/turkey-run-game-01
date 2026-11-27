@@ -300,6 +300,76 @@ export function createRenderer(canvas) {
       ellipse(shx + 6, sby - 18, 4, 3, stage.leaf);
       ellipse(shx + 16, sby - 14, 3.5, 2.5, stage.leaf);
     }
+    // Right-band midground dressing (finals round 21): the danger
+    // frame's right 2/3 used to be flat hill bands — one barn, one
+    // tree at the edge, bare green in between — so the frame read
+    // left-heavy against the farmer, turkey, oven and knife. A second
+    // barn, an oak, a second shrub, a fence run and a hay bale ride
+    // the same ridge maths at new phases, so they stay planted on the
+    // hill lines and scroll with the world; every one is drawn only
+    // when its screen x lands in the right band (700..1280), so the
+    // turkey, the knife and the OVEN! label — all left of x=520 in
+    // every staged play frame — can never be covered. Play screens
+    // only: the title and end screens keep their own compositions
+    // (their panels sit where this dressing would land). Pure
+    // functions of distance, so the gameplay random stream is never
+    // touched. Phases are tuned to the danger frame's scroll
+    // (655 m): barn ~760, oak ~900, shrub ~1150, bale ~1160, fence
+    // 724..980. Hills paint before entities, so an oven or its label
+    // always lands on top of this dressing, never behind it.
+    if (screen === SCREEN_PLAY) {
+      const inBand = (x) => x >= 700 && x <= 1280;
+      // Second barn on the far ridge, a little smaller than the pair.
+      const b2x = ((678 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+      if (inBand(b2x)) {
+        const bwx = b2x + shift;
+        const bby = 340 - Math.abs(Math.sin(bwx * 0.006)) * 46 - Math.sin(bwx * 0.013) * 46 * 0.35;
+        context.fillStyle = 'rgba(122,44,26,0.85)';
+        context.fillRect(b2x - 29, bby - 29, 58, 29);
+        context.beginPath();
+        context.moveTo(b2x - 34, bby - 29);
+        context.lineTo(b2x, bby - 44);
+        context.lineTo(b2x + 34, bby - 29);
+        context.closePath();
+        context.fill();
+        context.fillStyle = 'rgba(255,246,224,0.75)';
+        context.fillRect(b2x - 5, bby - 19, 10, 19);
+      }
+      // Oak on the near ridge: canopy top ~y 277, well above the
+      // OVEN! label band (y 335+) and clear of the turkey's flight.
+      const ox = ((540 - scroll * 0.25) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+      if (inBand(ox)) {
+        const nshift = (scroll * 0.25) % 640;
+        const owx = ox + nshift;
+        const ogy = 366 - Math.abs(Math.sin(owx * 0.006)) * 30 - Math.sin(owx * 0.013) * 30 * 0.35;
+        drawTree(ox, ogy + 6, 0.95, stage, 0.37);
+      }
+      // Second shrub on the far ridge, far right.
+      const s2x = ((1068 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+      if (inBand(s2x)) {
+        const s2wx = s2x + shift;
+        const s2by = 340 - Math.abs(Math.sin(s2wx * 0.006)) * 46 - Math.sin(s2wx * 0.013) * 46 * 0.35;
+        ellipse(s2x, s2by - 8, 26, 12, stage.treeDark);
+        ellipse(s2x - 13, s2by - 12, 15, 9, stage.tree);
+        ellipse(s2x + 14, s2by - 11, 13, 8, stage.treeDark);
+        context.fillStyle = stage.leaf;
+        ellipse(s2x - 8, s2by - 16, 4, 3, stage.leaf);
+        ellipse(s2x + 6, s2by - 18, 4, 3, stage.leaf);
+        ellipse(s2x + 16, s2by - 14, 3.5, 2.5, stage.leaf);
+      }
+      // Hay bale on the track verge, far right, at full world speed.
+      const hayx = ((100 - scroll) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+      if (inBand(hayx)) drawHayBale(hayx, FIELD.groundY, 1);
+      // Fence run along the track edge, right band only, at full
+      // world speed. Rails sit at y 368/382 and posts run 362..402:
+      // below the OVEN! label band (labels end at y~360 in the play
+      // frame, and the danger frame's label ends at x=517 anyway),
+      // so a rail can never cross a label.
+      for (let k = 0; k < 22; k += 1) {
+        const fx = ((k * 64 - scroll) % 1400 + 1400) % 1400 - 60;
+        if (fx >= 700 && fx <= 1020) drawFenceRun(fx, FIELD.groundY + 2, stage);
+      }
+    }
   }
 
   // ---- ground and mid scenery ----
