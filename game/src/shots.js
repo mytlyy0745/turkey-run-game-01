@@ -6,7 +6,7 @@
 // same frame. The play pilot looks well ahead and survives; the end pilot
 // looks only a moment ahead, so it is caught out once the knives speed up,
 // as a hurried player is.
-import { STEP, TURKEY, TURKEY_X, PX_PER_M } from './config.js';
+import { STEP, TURKEY, TURKEY_X, PX_PER_M, FIELD } from './config.js';
 import { EVENT_OVER, EVENT_ESCAPED, KIND_OVEN, KIND_FENCE, KIND_BALE, KIND_KNIFE, KIND_HAYSTACK } from './world.js';
 import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
 
@@ -113,14 +113,22 @@ function hazardAhead(state, maxD) {
 
 // An oven fully inside the frame, clear of the turkey and the farmer
 // and of both edges: the cover needs a whole oven with its flames and
-// its OVEN! label in shot, not one sliding off the right edge.
+// its OVEN! label in shot, not one sliding off the right edge. And no
+// oven just entering at the right edge either: a 26 px sliver of oven
+// plus a whole OVEN! label reads as a cropping accident, not a hazard.
+// The probe counted 7 right-edge-clean leap frames in the 40 s pass
+// (out of 20 with an oven in frame), so the constraint still leaves a
+// max-height leap to pick from — it does not starve the cover.
 function ovenInFrame(state) {
+  let ok = false;
   for (const e of state.entities) {
     if (!e.active || e.kind !== KIND_OVEN) continue;
     const sx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
-    if (sx > 480 && sx < 1150) return true;
+    if (sx > 480 && sx < 1150) ok = true;
+    if (sx >= 1150 && sx < FIELD.width) return false;
+    if (sx < FIELD.width && sx + e.w * PX_PER_M > FIELD.width) return false;
   }
-  return false;
+  return ok;
 }
 
 export function stageShot(name, world) {
@@ -181,9 +189,14 @@ export function stageShot(name, world) {
     // The turkey must be properly airborne over the oven: the old
     // frame caught it standing on the ground right at the oven, body
     // pressed against the flames, so it read as a turkey being
-    // roasted instead of one dodging. Feet 120 px up leave clear
+    // roasted instead of one dodging. Feet 150 px up leave clear
     // sky between the bird and the flame tongues, with the head
-    // against open sky instead of the oven or a tree behind it.
+    // against open sky instead of the oven or a tree behind it. The
+    // floor is 150, not 120: in the one jump the run offers, the
+    // knife behind the turkey is closest late in the jump, and the
+    // bird is higher over the oven too — the probe found only seven
+    // candidate frames in 90 s, all in the same jump, so the later
+    // frame is strictly the better one.
     runFor(world, DANGER_LIMIT_SECONDS, HORIZON_PLAY, (s) => {
       if (s.elapsed < 25) return false;
       // The turkey's head must stay clear of the HUD bar: at the top
@@ -192,7 +205,7 @@ export function stageShot(name, world) {
       // the same jump, when the bird has dropped back into the open sky.
       // The cap is 185, not 200, for the same reason as the play
       // frame: the bird is drawn 12% bigger since round 6.
-      if (s.player.y < 120 || s.player.y >= 185) return false;
+      if (s.player.y < 150 || s.player.y >= 185) return false;
       let ovenNear = false;
       let knifeNear = false;
       for (const e of s.entities) {

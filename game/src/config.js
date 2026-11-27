@@ -91,9 +91,9 @@ export const STAGES = [
   {
     name: 'THE WOODS',
     sub: 'Lose him between the old oaks',
-    skyTop: '#ffe9a8', skyMid: '#f2b25c', skyBot: '#c97e46',
+    skyTop: '#bfe3a1', skyMid: '#8cc47a', skyBot: '#5d9a58',
     sun: '#fff8d0', sunGlow: 'rgba(255,220,120,0.45)',
-    hillFar: '#67672c', hillMid: '#525d24', hillNear: '#3f4f1d',
+    hillFar: '#5a7030', hillMid: '#465e26', hillNear: '#35491c',
     ground: '#7d5c2e', groundDark: '#64451f', grass: '#9aa844',
     tree: '#4e6b1e', treeDark: '#38511a', leaf: '#d98a2b',
     accent: '#e07020',
@@ -101,9 +101,9 @@ export const STAGES = [
   {
     name: 'THE RIVERBANK',
     sub: 'Cold water, warm feathers — keep running',
-    skyTop: '#ffd98a', skyMid: '#f0a35e', skyBot: '#c96f52',
+    skyTop: '#a8d8f0', skyMid: '#7fb8e0', skyBot: '#5a90c0',
     sun: '#fff6c8', sunGlow: 'rgba(255,205,100,0.5)',
-    hillFar: '#74663f', hillMid: '#5d6034', hillNear: '#46522a',
+    hillFar: '#5a6a55', hillMid: '#46523f', hillNear: '#35402e',
     ground: '#8a6a34', groundDark: '#6e5223', grass: '#b5a24a',
     tree: '#5d7430', treeDark: '#44571f', leaf: '#e8b23a',
     accent: '#2e7fa8',
@@ -111,7 +111,7 @@ export const STAGES = [
   {
     name: 'THE FREEDOM FENCE',
     sub: 'One last fence — then nobody eats tonight',
-    skyTop: '#ff9d5c', skyMid: '#e86a6a', skyBot: '#8a4a7a',
+    skyTop: '#ff8a7a', skyMid: '#e86a8a', skyBot: '#8a4a7a',
     sun: '#ffe9a8', sunGlow: 'rgba(255,170,90,0.6)',
     hillFar: '#63435a', hillMid: '#51344a', hillNear: '#3e2739',
     ground: '#96683a', groundDark: '#7a4f26', grass: '#d99a44',

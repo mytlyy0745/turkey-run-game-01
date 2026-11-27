@@ -631,15 +631,21 @@ export function createRenderer(canvas) {
   // streaming BEHIND it (knives fly to the right, so the trail runs
   // left). In the contact sheet the old knife was a sliver you could
   // barely see; this one is visible at a glance.
-  function drawKnife(sx, y, t) {
+  // alpha fades a knife that has already flown past the turkey: a
+  // spent knife keeps flying right until it despawns 70 m ahead, so
+  // without the fade the frame always carries one lonely blade way
+  // out on the right, flying at the barn instead of at the bird.
+  // alpha is 1 until the knife is 8 m past the turkey and 0 by 28 m.
+  function drawKnife(sx, y, t, alpha) {
+    const a = alpha === undefined ? 1 : alpha;
     const cy = FIELD.groundY - y;
     const spin = t * 9;
     // Ghost blades: afterimages of the spin, fading with distance.
-    for (const [off, a] of [[-36, 0.3], [-68, 0.15]]) {
+    for (const [off, ga] of [[-36, 0.3], [-68, 0.15]]) {
       context.save();
       context.translate(sx + off, cy);
       context.rotate(spin);
-      context.globalAlpha = a;
+      context.globalAlpha = ga * a;
       context.fillStyle = PALETTE.knifeBlade;
       context.beginPath();
       context.moveTo(-24, -8);
@@ -651,7 +657,7 @@ export function createRenderer(canvas) {
       context.fill();
       context.restore();
     }
-    context.globalAlpha = 1;
+    context.globalAlpha = a;
     // Long speed trail behind the blade.
     context.strokeStyle = 'rgba(255,255,255,0.85)';
     context.lineWidth = 4;
@@ -688,6 +694,8 @@ export function createRenderer(canvas) {
     context.fillStyle = 'rgba(20,20,30,0.5)';
     context.fillRect(-40, -8, 4, 16);
     context.restore();
+    // Never leak the fade to whatever is drawn next.
+    context.globalAlpha = 1;
   }
 
   // ---- the turkey ----
@@ -1484,6 +1492,15 @@ export function createRenderer(canvas) {
     context.shadowBlur = 34;
     text('TURKEY RUN!', 640, 140, 88, '#fff6e0', 'center', '900');
     context.restore();
+    // The subtitle sits on a dark pill now, not bare white on the
+    // orange sky: at contact-sheet size the white text went grey and
+    // tired against the bright sky. The pill is 680 px wide — the
+    // line measures ~650 px at 24 px, so the text sits inside it
+    // with ~15 px to spare each side (the first version was 600 px
+    // and the ends of the line stuck out past the pill). It clears
+    // the title above (top y=149) and the instruction panel below
+    // (bottom y=183, panel top y=188).
+    pill(300, 149, 680, 34, 12, 'rgba(20,8,2,0.55)');
     text('Escape the farm. Dodge the oven. Outrun the farmer.', 640, 176, 24, '#ffe9b0', 'center', '700');
     // The instruction panel sits 8 px higher than before (top y=188,
     // bottom y=288): the turkey's head used to clear its bottom edge
@@ -1531,37 +1548,52 @@ export function createRenderer(canvas) {
     if (escaped) {
       // Golden fireworks of feathers over the freedom fence — bigger,
       // with a warm glow behind the headline so it punches through.
+      // Two fat bursts flank the headline instead of one ring centred
+      // on it: the old ring put its dots right across the subtitle
+      // lines (a white dot sat on the word "dinner"), and its dots
+      // were small and pale. Each burst is 12 dots, 8–12 px, gold /
+      // orange / white, with cross sparkles — and both bursts sit
+      // clear of the HUD above (dots stay below y≈105), clear of the
+      // subtitle (x 90–270 and 1010–1190, the text lives x 400–880)
+      // and clear of the score panel below (dots stay above y≈195).
       const glow = context.createRadialGradient(640, 120, 10, 640, 120, 260);
       glow.addColorStop(0, 'rgba(255,190,60,0.5)');
       glow.addColorStop(1, 'rgba(255,190,60,0)');
       context.fillStyle = glow;
       context.fillRect(380, -40, 520, 320);
-      for (let i = 0; i < 24; i += 1) {
-        const a = (i / 24) * Math.PI * 2 + state.elapsed * 0.2;
-        const r = 90 + ((i * 53) % 120);
-        const fx = 640 + Math.cos(a) * r * 1.6;
-        const fy = 140 + Math.sin(a) * r * 0.5;
-        context.fillStyle = i % 3 === 0 ? '#ffd23e' : i % 3 === 1 ? '#ff7a1e' : '#fff6e0';
-        context.beginPath();
-        context.arc(fx, fy, 5 + (i % 3) * 2, 0, Math.PI * 2);
-        context.fill();
-        // Cross sparkle on every third burst.
-        if (i % 3 === 0) {
-          context.strokeStyle = 'rgba(255,246,224,0.9)';
-          context.lineWidth = 2;
+      for (const [bcx, bcy] of [[180, 150], [1100, 150]]) {
+        for (let i = 0; i < 12; i += 1) {
+          const a = (i / 12) * Math.PI * 2 + state.elapsed * 0.25;
+          const r = 42 + ((i * 37) % 48);
+          const fx = bcx + Math.cos(a) * r;
+          const fy = bcy + Math.sin(a) * r * 0.55;
+          context.fillStyle = i % 3 === 0 ? '#ffd23e' : i % 3 === 1 ? '#ff7a1e' : '#fff6e0';
           context.beginPath();
-          context.moveTo(fx - 10, fy);
-          context.lineTo(fx + 10, fy);
-          context.moveTo(fx, fy - 10);
-          context.lineTo(fx, fy + 10);
-          context.stroke();
+          context.arc(fx, fy, 8 + (i % 3) * 2, 0, Math.PI * 2);
+          context.fill();
+          // Cross sparkle on every third burst dot.
+          if (i % 3 === 0) {
+            context.strokeStyle = 'rgba(255,246,224,0.9)';
+            context.lineWidth = 2.5;
+            context.beginPath();
+            context.moveTo(fx - 13, fy);
+            context.lineTo(fx + 13, fy);
+            context.moveTo(fx, fy - 13);
+            context.lineTo(fx, fy + 13);
+            context.stroke();
+          }
         }
       }
       // Golden feathers drifting down through the fireworks — the
-      // escape reads as a celebration, not just a headline.
+      // escape reads as a celebration, not just a headline. They fall
+      // only in the outer thirds of the frame now: the old fall
+      // crossed the whole width, so a feather could land on the
+      // subtitle or the re-run prompt. The centre column stays clear.
+      // And they start below y=90, so none ever sits on the HUD bar
+      // — one used to drift across the ESCAPE label in the end frame.
       for (let i = 0; i < 8; i += 1) {
-        const fx = 120 + i * 150 + Math.sin(state.elapsed * 0.9 + i * 2.1) * 22;
-        const fy = ((state.elapsed * 26 + i * 97) % 480) - 20;
+        const fx = (i < 4 ? 80 + i * 85 : 920 + (i - 4) * 85) + Math.sin(state.elapsed * 0.9 + i * 2.1) * 22;
+        const fy = 90 + ((state.elapsed * 26 + i * 97) % 380);
         context.save();
         context.translate(fx, fy);
         context.rotate(Math.sin(state.elapsed + i) * 0.7);
@@ -1665,7 +1697,19 @@ export function createRenderer(canvas) {
       else if (e.kind === KIND_CORN) drawCorn(sx, e.y, t);
       else if (e.kind === KIND_PUMPKIN) drawGoldenPumpkin(sx, e.y, t);
       else if (e.kind === KIND_FEATHER) drawFeatherPickup(sx, e.y, t);
-      else if (e.kind === KIND_KNIFE) drawKnife(sx, e.y, t);
+      else if (e.kind === KIND_KNIFE) {
+        // A knife that has already flown past the turkey is a spent
+        // threat: it can never come back and hit the bird (knives
+        // only fly right, faster than the turkey), so it fades out
+        // instead of lingering as a lone blade on the right of the
+        // frame. A knife still approaching or level with the turkey
+        // is always at full strength. The fade never touches the
+        // gameplay random stream and never changes a collision: hits
+        // are only checked while |d| < 1 m, where alpha is 1.
+        const kd = e.x - state.distance;
+        const ka = kd > 8 ? clamp(1 - (kd - 8) / 20, 0, 1) : 1;
+        if (ka > 0) drawKnife(sx, e.y, t, ka);
+      }
       if (passed) context.restore();
     }
     drawTurkey(state, turkeyScale, escaped);
