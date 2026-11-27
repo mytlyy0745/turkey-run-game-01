@@ -555,6 +555,30 @@ export function createRenderer(canvas) {
     const tilt = pose === 'jump' ? -0.16 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.06 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
     // A soft contact shadow grounds the turkey, even mid-jump.
     ellipse(cx, gy + 4, 34 * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
+    // Dust trailing the feet while running — phase-driven, so a puff
+    // is in frame on every stride instead of only when the world's
+    // random dust happens to fire.
+    if (pose === 'run') {
+      for (let i = 0; i < 2; i += 1) {
+        const ph = (p.runPhase * 0.35 + i * 0.5) % 1;
+        const dx = cx - 34 - ph * 46;
+        const r = 4 + ph * 9;
+        context.fillStyle = `rgba(214,178,120,${(1 - ph) * 0.45})`;
+        context.beginPath();
+        context.arc(dx, gy - 2 - ph * 6, r, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+    // Landing dust ring: a flat ring that spreads and fades as the
+    // squash settles, so a landing reads even in a still frame.
+    if (p.squash > 0 && !air) {
+      const k = 1 - p.squash;
+      context.strokeStyle = `rgba(240,214,170,${p.squash * 0.55})`;
+      context.lineWidth = 3;
+      context.beginPath();
+      context.ellipse(cx, gy + 3, 22 + k * 42, 6 + k * 5, 0, 0, Math.PI * 2);
+      context.stroke();
+    }
     context.save();
     context.translate(cx, feetY + runBob);
     context.rotate(tilt);
@@ -565,6 +589,20 @@ export function createRenderer(canvas) {
       glow.addColorStop(1, 'rgba(255,210,62,0)');
       context.fillStyle = glow;
       context.fillRect(-110, -160, 220, 220);
+      // Orbiting golden sparks and a pulsing ring: the invincible aura
+      // reads as a ring of light around the bird, not just a wash.
+      context.strokeStyle = `rgba(255,210,62,${0.5 + Math.sin(state.elapsed * 5) * 0.2})`;
+      context.lineWidth = 2.5;
+      context.beginPath();
+      context.arc(4, -44, 66, 0, Math.PI * 2);
+      context.stroke();
+      for (let i = 0; i < 6; i += 1) {
+        const a = state.elapsed * 3 + (i * Math.PI) / 3;
+        context.fillStyle = `rgba(255,214,80,${0.65 + Math.sin(state.elapsed * 6 + i) * 0.3})`;
+        context.beginPath();
+        context.arc(4 + Math.cos(a) * 62, -44 + Math.sin(a) * 46, 4, 0, Math.PI * 2);
+        context.fill();
+      }
     }
     // Fanned tail feathers — the silhouette that says "turkey". The fan
     // wags as it runs, spreads wide and lifts in a jump, flattens back
@@ -733,6 +771,22 @@ export function createRenderer(canvas) {
       context.arc(4, -bodyH / 2 - 4, 52, 0, Math.PI * 2);
       context.stroke();
     }
+    // Impact starburst on a fresh hit, drawn AFTER the body so it is
+    // never buried under the feathers: a white flash that sells the
+    // blow in the same frame the feather burst flies.
+    if (pose === 'hurt') {
+      const sa = clamp(p.squash, 0, 1);
+      context.strokeStyle = `rgba(255,255,255,${0.9 * sa})`;
+      context.lineWidth = 3;
+      context.beginPath();
+      for (let i = 0; i < 4; i += 1) {
+        const a = (i * Math.PI) / 4;
+        const r = 30 * sa + 8;
+        context.moveTo(4 - Math.cos(a) * r, -44 - Math.sin(a) * r);
+        context.lineTo(4 + Math.cos(a) * r, -44 + Math.sin(a) * r);
+      }
+      context.stroke();
+    }
     // Dash speed lines streaming past the tail.
     if (p.dashing) {
       context.strokeStyle = 'rgba(255,246,224,0.5)';
@@ -798,7 +852,7 @@ export function createRenderer(canvas) {
     }
     // Dust kicked up by each stride.
     const stride = Math.sin(f.anim);
-    const dustA = Math.max(0, Math.sin(f.anim * 2)) * 0.45;
+    const dustA = Math.max(0, Math.sin(f.anim * 2)) * 0.6;
     context.fillStyle = `rgba(214,178,120,${dustA})`;
     context.beginPath();
     context.ellipse(-6 + stride * 14, -2, 9, 4, 0, 0, Math.PI * 2);
@@ -986,34 +1040,83 @@ export function createRenderer(canvas) {
   }
 
   // ---- particles, leaves, vignette ----
+  // Four kinds, each with its own shape so the burst reads as what it
+  // is instead of a scatter of grey dots: dust is a soft two-tone
+  // puff that grows as it fades, feathers are brown teardrops with a
+  // pale tip and a quill line, embers are rising flame tongues drawn
+  // additively so they glow, and gold sparkles are four-point stars.
   function drawParticles(state) {
+    // Additive pass first: embers and sparkles glow against sky and
+    // ground alike instead of sitting on top as flat discs.
+    context.save();
+    context.globalCompositeOperation = 'lighter';
     for (const p of state.particles) {
       if (!p.active) continue;
       const a = clamp(p.life / p.max, 0, 1);
-      if (p.kind === 0) { // dust
-        context.fillStyle = `rgba(214,178,120,${a * 0.7})`;
+      if (p.kind === 2) { // embers — a rising flame tongue
+        const h = p.size * (2.4 + (1 - a) * 1.8);
+        const g = context.createRadialGradient(p.x, p.y, 0, p.x, p.y - h * 0.4, h);
+        g.addColorStop(0, `rgba(255,220,110,${0.85 * a})`);
+        g.addColorStop(0.5, `rgba(255,122,30,${0.6 * a})`);
+        g.addColorStop(1, 'rgba(255,80,10,0)');
+        context.fillStyle = g;
         context.beginPath();
-        context.arc(p.x, p.y, p.size * (1.6 - a * 0.6), 0, Math.PI * 2);
+        context.ellipse(p.x, p.y - h * 0.3, p.size * 1.2, h, 0, 0, Math.PI * 2);
         context.fill();
-      } else if (p.kind === 1) { // feathers
+        // Bright core so the flame reads even at contact-sheet size.
+        context.fillStyle = `rgba(255,240,170,${0.9 * a})`;
+        context.beginPath();
+        context.arc(p.x, p.y - h * 0.25, Math.max(2, p.size * 0.45), 0, Math.PI * 2);
+        context.fill();
+      } else if (p.kind === 3) { // golden sparkles — four-point stars
+        const r = p.size * (0.7 + a * 0.9);
+        context.fillStyle = `rgba(255,214,80,${0.95 * a})`;
+        context.beginPath();
+        context.moveTo(p.x, p.y - r * 1.7);
+        context.quadraticCurveTo(p.x, p.y, p.x + r * 1.7, p.y);
+        context.quadraticCurveTo(p.x, p.y, p.x, p.y + r * 1.7);
+        context.quadraticCurveTo(p.x, p.y, p.x - r * 1.7, p.y);
+        context.quadraticCurveTo(p.x, p.y, p.x, p.y - r * 1.7);
+        context.fill();
+        context.fillStyle = `rgba(255,255,255,${0.9 * a})`;
+        context.beginPath();
+        context.arc(p.x, p.y, r * 0.35, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+    context.restore();
+    for (const p of state.particles) {
+      if (!p.active) continue;
+      const a = clamp(p.life / p.max, 0, 1);
+      if (p.kind === 0) { // dust — soft puff, pale core, grows as it fades
+        const r = p.size * (1.6 - a * 0.6);
+        context.fillStyle = `rgba(214,178,120,${a * 0.55})`;
+        context.beginPath();
+        context.arc(p.x, p.y, r, 0, Math.PI * 2);
+        context.fill();
+        context.fillStyle = `rgba(240,214,170,${a * 0.5})`;
+        context.beginPath();
+        context.arc(p.x - r * 0.2, p.y - r * 0.25, r * 0.55, 0, Math.PI * 2);
+        context.fill();
+      } else if (p.kind === 1) { // feathers — teardrop, pale tip, quill
         context.save();
         context.translate(p.x, p.y);
         context.rotate(p.life * 6);
         context.fillStyle = `rgba(150,90,40,${a})`;
         context.beginPath();
-        context.ellipse(0, 0, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
+        context.ellipse(0, 0, p.size * 1.15, p.size * 0.6, 0, 0, Math.PI * 2);
         context.fill();
+        context.fillStyle = `rgba(255,246,224,${a * 0.9})`;
+        context.beginPath();
+        context.ellipse(p.size * 0.55, 0, p.size * 0.45, p.size * 0.32, 0, 0, Math.PI * 2);
+        context.fill();
+        context.strokeStyle = `rgba(60,25,5,${a * 0.8})`;
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(-p.size, 0);
+        context.lineTo(p.size, 0);
+        context.stroke();
         context.restore();
-      } else if (p.kind === 2) { // embers
-        context.fillStyle = `rgba(255,${120 + Math.floor(a * 100)},30,${a})`;
-        context.beginPath();
-        context.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        context.fill();
-      } else { // golden sparkles
-        context.fillStyle = `rgba(255,210,62,${a})`;
-        context.beginPath();
-        context.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2);
-        context.fill();
       }
     }
     for (const l of state.leaves) {
@@ -1156,10 +1259,11 @@ export function createRenderer(canvas) {
     text('A 1,500 m dash through the farmyard, the woods, the riverbank — to the freedom fence.', 640, 452, 16, 'rgba(255,246,224,0.75)', 'center', '700');
     // Foreground corners, so the bottom of the title is not empty stage:
     // a pumpkin pile on the left, a fence run and a hay bale on the
-    // right. They sit clear of the farmer (left edge) and the turkey.
-    drawPumpkin(96, FIELD.groundY - 6, 26);
-    drawPumpkin(142, FIELD.groundY - 4, 20);
-    drawPumpkin(118, FIELD.groundY - 28, 17);
+    // right. The pile sits clear of the farmer (left edge) with room to
+    // breathe — it used to crowd his boots — and clear of the turkey.
+    drawPumpkin(152, FIELD.groundY - 6, 26);
+    drawPumpkin(198, FIELD.groundY - 4, 20);
+    drawPumpkin(174, FIELD.groundY - 28, 17);
     drawFenceRun(1150, FIELD.groundY, STAGES[state.stage]);
     drawHayBale(1218, FIELD.groundY, 0.9);
     drawPumpkin(1096, FIELD.groundY - 4, 16);
@@ -1207,6 +1311,26 @@ export function createRenderer(canvas) {
           context.stroke();
         }
       }
+      // Golden feathers drifting down through the fireworks — the
+      // escape reads as a celebration, not just a headline.
+      for (let i = 0; i < 8; i += 1) {
+        const fx = 120 + i * 150 + Math.sin(state.elapsed * 0.9 + i * 2.1) * 22;
+        const fy = ((state.elapsed * 26 + i * 97) % 480) - 20;
+        context.save();
+        context.translate(fx, fy);
+        context.rotate(Math.sin(state.elapsed + i) * 0.7);
+        context.fillStyle = i % 2 === 0 ? 'rgba(255,214,80,0.9)' : 'rgba(255,246,224,0.9)';
+        context.beginPath();
+        context.ellipse(0, 0, 11, 6, 0, 0, Math.PI * 2);
+        context.fill();
+        context.strokeStyle = 'rgba(150,90,40,0.7)';
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(-10, 0);
+        context.lineTo(10, 0);
+        context.stroke();
+        context.restore();
+      }
       text('ESCAPED!', 640, 132, 80, '#ffd23e', 'center', '900');
       text('The turkey made it past the freedom fence —', 640, 168, 22, PALETTE.text, 'center', '700');
       text('no Thanksgiving dinner tonight.', 640, 192, 22, PALETTE.text, 'center', '700');
@@ -1236,28 +1360,41 @@ export function createRenderer(canvas) {
     drawHills(state, stage);
     drawGround(state, stage);
     const t = state.elapsed;
-    // Pickups and hazards, in world order.
+    // Pickups and hazards, in world order. Anything the turkey has
+    // already run past fades to a ghost of itself: a passed oven used
+    // to sit right on top of the farmer at the left edge and hide half
+    // of him. Faded, the farmer always reads; the hazard ahead stays
+    // at full strength, so the eye goes to the danger that matters.
     for (const e of state.entities) {
       if (!e.active || e.taken) continue;
       const sx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
       if (sx < -260 || sx > FIELD.width + 260) continue;
-      if (e.kind === KIND_OVEN) drawOven(sx, e.w * PX_PER_M);
-      else if (e.kind === KIND_FENCE) drawFenceObstacle(sx, e.w * PX_PER_M, e.h);
+      const wPx = e.w * PX_PER_M;
+      const passed = (e.kind === KIND_OVEN || e.kind === KIND_FENCE || e.kind === KIND_BALE) && sx + wPx < TURKEY_X;
+      if (passed) { context.save(); context.globalAlpha = 0.28; }
+      if (e.kind === KIND_OVEN) drawOven(sx, wPx);
+      else if (e.kind === KIND_FENCE) drawFenceObstacle(sx, wPx, e.h);
       else if (e.kind === KIND_BALE) drawHayBale(sx, FIELD.groundY, e.w / 3.4);
       else if (e.kind === KIND_CORN) drawCorn(sx, e.y, t);
       else if (e.kind === KIND_PUMPKIN) drawGoldenPumpkin(sx, e.y, t);
       else if (e.kind === KIND_FEATHER) drawFeatherPickup(sx, e.y, t);
       else if (e.kind === KIND_KNIFE) drawKnife(sx, e.y, t);
+      if (passed) context.restore();
     }
     drawTurkey(state);
     drawFarmer(state);
     // Haystacks stand in front, so a hiding turkey really disappears.
+    // A passed haystack fades with the rest, for the same reason: the
+    // farmer at the left edge must never hide behind one.
     for (const e of state.entities) {
       if (!e.active || e.kind !== KIND_HAYSTACK) continue;
       const sx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
       if (sx < -260 || sx > FIELD.width + 260) continue;
+      const passed = sx + 40 < TURKEY_X;
+      if (passed) { context.save(); context.globalAlpha = 0.35; }
       drawHayBale(sx, FIELD.groundY, 1.9);
       text('HIDE ↓', sx, FIELD.groundY - 88, 18, '#fff6e0', 'center', '900');
+      if (passed) context.restore();
     }
     drawParticles(state);
     drawDangerVignette(state);
