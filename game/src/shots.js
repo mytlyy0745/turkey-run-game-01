@@ -274,16 +274,22 @@ export function stageShot(name, world) {
     });
     return { screen: SCREEN_PLAY, best: Math.floor(world.state.score) };
   }
-  // End: a short-sighted pilot on the shot's seed. Seed 146 escapes
-  // (6535 pts, 30 corn, combo x5, 2 lives left), so the end frame
+  // End: a short-sighted pilot on the shot's seed. Seed 159 escapes
+  // (7130 pts, 41 corn, combo x5, 2 lives left), so the end frame
   // shows the ESCAPED celebration — fireworks and gold feathers —
-  // instead of the CAUGHT red headline seed 7 gave. Seed 146 was
-  // picked over seed 19 (7415 pts) because 19's final frame has a
-  // knife flying straight across the hero turkey's head, while 146
-  // is the highest-scoring escape (of 25 in seeds 1..150) with no
-  // knife anywhere near the hero's head — the only knives left are
-  // a low one skimming the ground left of the bird and one already
-  // faded out far to the right.
+  // instead of the CAUGHT red headline seed 7 gave. Seed 159 was
+  // picked over seed 146 (6535 pts) in round 18: a 500-seed probe of
+  // the end pilot found 89 escapes, and 159 is the highest-scoring
+  // one that is clean on all four counts — no knife crossing the
+  // freedom-gate pickets (146's low blade at sx=270, cy=368 drew a
+  // grey bar straight across the white fence), no knife in the hero
+  // head box, no feather-shield ring around the hero turkey, and the
+  // re-run prompt blink on. Its one visible knife sits at sx=201,
+  // cy=292, left of the gate by the farmer — a threat still in the
+  // air, not a defect. Seed 320 scores higher (7550) but fails two
+  // counts: a shield ring circles the hero turkey and the prompt
+  // blink is off. Seed 19 (7415 pts) still has a knife flying
+  // straight across the hero turkey's head.
   runFor(world, END_LIMIT_SECONDS, HORIZON_END);
   const done = world.state.over || world.state.escaped;
   return { screen: done ? SCREEN_OVER : SCREEN_PLAY, best: Math.floor(world.state.score) };

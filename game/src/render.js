@@ -155,39 +155,47 @@ export function createRenderer(canvas) {
     const dx = 1132 + Math.sin(state.elapsed * 0.3) * 18;
     const dy = 128 + Math.sin(state.elapsed * 0.5) * 6;
     const dflap = Math.sin(state.elapsed * 3.2) * 4;
+    // Birds are drawn as a sharp "V" gull — two straight strokes
+    // meeting at a point — not the smooth single arc they used to
+    // be: three arcs in a row, spaced 34 px apart on one baseline,
+    // read as a row of closed eyes whenever they crossed a pale
+    // cloud (the danger frame grew a sleepy face, the cover a sad
+    // one), and a flap dip in the middle arc became a frowning
+    // mouth. A pointed V with staggered heights reads as birds at
+    // any phase and at contact-sheet size, and never as a face.
+    function gull(x, y, s, flap) {
+      context.beginPath();
+      context.moveTo(x - 10 * s, y - 2 * s - flap);
+      context.lineTo(x, y + 4 * s);
+      context.lineTo(x + 10 * s, y - 2 * s + flap);
+      context.stroke();
+    }
     context.strokeStyle = 'rgba(60,30,10,0.55)';
     context.lineWidth = 2.5;
-    context.beginPath();
-    context.moveTo(dx - 11, dy + dflap);
-    context.quadraticCurveTo(dx, dy - 4, dx + 11, dy + dflap);
-    context.stroke();
+    gull(dx, dy, 1, dflap);
     // Two birds crossing the evening sky, and a lower flock of three.
     // Both paths stay inside the frame with room to breathe: the old
     // pair started at x=-100, so on the title it hugged the left edge
     // with one bird half-clipped, and the flock arrived hard against
     // the right edge. Now the pair travels 90..1110 and the flock
-    // 90..1190, never touching either edge.
+    // 90..1190, never touching either edge. The flock birds are
+    // staggered in height (0/-7/+5 px) so they never sit on one
+    // baseline as a row of eyes.
     const bx = 90 + (state.elapsed * 26) % (FIELD.width - 260);
     const by = 62 + Math.sin(state.elapsed * 0.8) * 10;
     context.strokeStyle = 'rgba(60,30,10,0.75)';
     context.lineWidth = 3;
-    for (const off of [0, 46]) {
+    for (const [off, dy2] of [[0, 0], [46, -6]]) {
       const flap = Math.sin(state.elapsed * 6 + off) * 5;
-      context.beginPath();
-      context.moveTo(bx + off - 10, by + flap);
-      context.quadraticCurveTo(bx + off, by - 4, bx + off + 10, by + flap);
-      context.stroke();
+      gull(bx + off, by + dy2, 1, flap);
     }
     const fx2 = FIELD.width - 90 - (state.elapsed * 18) % (FIELD.width - 260);
     const fy2 = 152 + Math.sin(state.elapsed * 0.6 + 2) * 8;
     context.strokeStyle = 'rgba(60,30,10,0.6)';
     context.lineWidth = 2.5;
-    for (const off of [0, 34, 62]) {
+    for (const [off, dy2] of [[0, 0], [34, -7], [62, 5]]) {
       const flap = Math.sin(state.elapsed * 5 + off) * 4;
-      context.beginPath();
-      context.moveTo(fx2 + off - 8, fy2 + flap);
-      context.quadraticCurveTo(fx2 + off, fy2 - 3, fx2 + off + 8, fy2 + flap);
-      context.stroke();
+      gull(fx2 + off, fy2 + dy2, 1, flap);
     }
   }
 
@@ -1589,7 +1597,12 @@ export function createRenderer(canvas) {
     // turkey's tail fan used to end only ~47 px above it, and the line
     // reads as crowded under the bird. Now the tail has room to
     // breathe, and the line still clears the bottom edge by ~14 px.
-    text('A 1,500 m dash through the farmyard, the woods, the riverbank — to the freedom fence.', 640, 462, 16, 'rgba(255,246,224,0.75)', 'center', '700');
+    // It is 18 px, not 16: at contact-sheet size 16 px renders as
+    // ~8 px, the smallest text on the title, and it is the only line
+    // without a backing pill — 18 px at 0.9 alpha keeps it a readable
+    // footer instead of a grey hairline. The line is ~775 px wide at
+    // 18 px, still well inside the frame on its dark ground.
+    text('A 1,500 m dash through the farmyard, the woods, the riverbank — to the freedom fence.', 640, 462, 18, 'rgba(255,246,224,0.9)', 'center', '700');
     // Foreground corners, so the bottom of the title is not empty stage:
     // a pumpkin pile on the left, a fence run and a hay bale on the
     // right. The pile sits clear of the farmer (left edge) with room to
@@ -1717,10 +1730,24 @@ export function createRenderer(canvas) {
       ellipse(150, 420, 3, 3, '#e86a1e');
       ellipse(196, 418, 3, 3, '#f2c14e');
       ellipse(226, 421, 6, 3.5, '#e8a13a');
+      // The two-line subtitle sits on a dark pill, like the title's
+      // kicker and subtitle: bare white 22 px type on the pink
+      // sunset sky thinned out at contact-sheet size, and the pill
+      // is the same visual language as the title screen. The pill
+      // (384..896 x 144..206) clears everything around it — the
+      // ESCAPED! title ends above it, the score panel starts 4 px
+      // below it, the fireworks stay out at the sides, and even the
+      // highest celebrate leap (seed 146's beak tip) stays ~4 px
+      // clear of its bottom-left corner; the shipped seed 159's
+      // hero head sits ~55 px below it.
+      pill(384, 144, 512, 62, 12, 'rgba(20,8,2,0.5)');
       text('ESCAPED!', 640, 136, 80, '#ffd23e', 'center', '900');
       text('The turkey made it past the freedom fence —', 640, 172, 22, PALETTE.text, 'center', '700');
       text('no Thanksgiving dinner tonight.', 640, 196, 22, PALETTE.text, 'center', '700');
     } else {
+      // Same subtitle pill as the escape branch: the caught lines sit
+      // on the same pink sky at the same spot.
+      pill(384, 144, 512, 62, 12, 'rgba(20,8,2,0.5)');
       text('CAUGHT FOR DINNER', 640, 136, 76, '#ff5a3c', 'center', '900');
       text('The farmer finally got his hands on you…', 640, 172, 22, PALETTE.text, 'center', '700');
       text('the oven was already warm.', 640, 196, 22, PALETTE.text, 'center', '700');
