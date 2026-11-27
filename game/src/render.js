@@ -189,16 +189,24 @@ export function createRenderer(canvas) {
     // 82..113: worst-case wing tip 82 clears the bar bottom by 4 px,
     // and the pair sits in open sky above the turkey's head and the
     // mid-sky clouds, so it reads in play, danger and title frames.
-    // The end screen is the exception: its ESCAPED! letters span
-    // y 85..165, so a pair at by=102 flies straight across the gold
-    // E — the first version of this change put two dark Vs on the
-    // E's top bar and counter, reading as smudges on the letter, not
-    // birds (cropped-zoom verified). On the end screen the pair
-    // stays at the old by=62, hidden behind the HUD bar exactly as
-    // in rounds 1–18; the end frame already has fireworks, the flock
-    // and the lone bird, so nothing is lost.
-    const bx = 90 + (state.elapsed * 26) % (FIELD.width - 260);
-    const by = (screen === SCREEN_OVER ? 62 : 102) + Math.sin(state.elapsed * 0.8) * 7;
+    // The end screen used to be the exception: its ESCAPED! letters
+    // span y 85..165, so a pair at by=102 flies straight across the
+    // gold E — the first version of this change put two dark Vs on
+    // the E's top bar and counter, reading as smudges on the letter,
+    // not birds (cropped-zoom verified), so the pair stayed at the
+    // old by=62, hidden behind the HUD bar, through round 19.
+    // Round 20 finally gives it a band of its own, measured off the
+    // end frame: the subtitle pill ends at y=206, the score panel's
+    // right edge is x=820, the pale cloud bottom is ~y=235, the barn
+    // roof starts at x~1102 and the ridge crest sits at ~y=300 — so
+    // the open pink sky at x 850..1056, y ~244..274 is clear of
+    // everything (E, pill, panel, cloud, barn, ridge, fireworks),
+    // and the pair flies there at by=258 instead of hiding.
+    const over = screen === SCREEN_OVER;
+    const bx = over
+      ? 850 + (state.elapsed * 20) % 160
+      : 90 + (state.elapsed * 26) % (FIELD.width - 260);
+    const by = (over ? 258 : 102) + Math.sin(state.elapsed * 0.8) * 7;
     context.strokeStyle = 'rgba(60,30,10,0.75)';
     context.lineWidth = 3;
     for (const [off, dy2] of [[0, 0], [46, -6]]) {
@@ -759,6 +767,14 @@ export function createRenderer(canvas) {
     context.fillRect(-40, -8, 17, 16);
     context.fillStyle = 'rgba(20,20,30,0.5)';
     context.fillRect(-40, -8, 4, 16);
+    // The handle gets the same dark outline as the blade: in the
+    // danger frame the handle crosses the oven's flame tongues, and
+    // without an edge the dark wood melts into the orange flame.
+    // The blade already had this outline; the handle was the only
+    // un-outlined part of the knife.
+    context.strokeStyle = 'rgba(20,20,30,0.8)';
+    context.lineWidth = 2;
+    context.strokeRect(-40, -8, 17, 16);
     context.restore();
     // Never leak the fade to whatever is drawn next.
     context.globalAlpha = 1;
