@@ -467,31 +467,69 @@ export function createRenderer(canvas) {
     context.fillRect(sx - 30, cy - 30, 60, 60);
   }
 
+  // A carving knife in flight — bigger than before, with a dark outline
+  // so the blade reads against bright sky and dark ground alike, two
+  // faint ghost blades trailing it, and a long white speed streak
+  // streaming BEHIND it (knives fly to the right, so the trail runs
+  // left). In the contact sheet the old knife was a sliver you could
+  // barely see; this one is visible at a glance.
   function drawKnife(sx, y, t) {
     const cy = FIELD.groundY - y;
     const spin = t * 9;
+    // Ghost blades: afterimages of the spin, fading with distance.
+    for (const [off, a] of [[-36, 0.3], [-68, 0.15]]) {
+      context.save();
+      context.translate(sx + off, cy);
+      context.rotate(spin);
+      context.globalAlpha = a;
+      context.fillStyle = PALETTE.knifeBlade;
+      context.beginPath();
+      context.moveTo(-24, -8);
+      context.lineTo(18, -8);
+      context.lineTo(32, 0);
+      context.lineTo(18, 8);
+      context.lineTo(-24, 8);
+      context.closePath();
+      context.fill();
+      context.restore();
+    }
+    context.globalAlpha = 1;
+    // Long speed trail behind the blade.
+    context.strokeStyle = 'rgba(255,255,255,0.85)';
+    context.lineWidth = 4;
+    context.beginPath();
+    context.moveTo(sx - 38, cy);
+    context.lineTo(sx - 126, cy + 6);
+    context.stroke();
+    context.strokeStyle = 'rgba(255,255,255,0.4)';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(sx - 38, cy - 10);
+    context.lineTo(sx - 100, cy - 4);
+    context.moveTo(sx - 38, cy + 10);
+    context.lineTo(sx - 100, cy + 16);
+    context.stroke();
+    // The blade itself, ~35% longer and wider than before.
     context.save();
     context.translate(sx, cy);
     context.rotate(spin);
     context.fillStyle = PALETTE.knifeBlade;
     context.beginPath();
-    context.moveTo(-18, -5);
-    context.lineTo(14, -5);
-    context.lineTo(24, 0);
-    context.lineTo(14, 5);
-    context.lineTo(-18, 5);
+    context.moveTo(-24, -8);
+    context.lineTo(18, -8);
+    context.lineTo(32, 0);
+    context.lineTo(18, 8);
+    context.lineTo(-24, 8);
     context.closePath();
     context.fill();
-    context.fillStyle = PALETTE.knifeHandle;
-    context.fillRect(-30, -5, 13, 10);
-    context.restore();
-    // A white glint trail behind the blade.
-    context.strokeStyle = 'rgba(255,255,255,0.7)';
+    context.strokeStyle = 'rgba(20,20,30,0.8)';
     context.lineWidth = 2;
-    context.beginPath();
-    context.moveTo(sx + 34, cy);
-    context.lineTo(sx + 70, cy - 6);
     context.stroke();
+    context.fillStyle = PALETTE.knifeHandle;
+    context.fillRect(-40, -8, 17, 16);
+    context.fillStyle = 'rgba(20,20,30,0.5)';
+    context.fillRect(-40, -8, 4, 16);
+    context.restore();
   }
 
   // ---- the turkey ----
@@ -712,6 +750,12 @@ export function createRenderer(canvas) {
   }
 
   // ---- the farmer ----
+  // Three states that read at a glance, to match the turkey's four
+  // poses: a leaning run with pumping arms and kicked-up dust, a windup
+  // with the knife cocked high behind his head (and a white throw arc),
+  // and a close-chase lunge with an angry shouting face. He is drawn
+  // ~22% bigger than before, so the second lead still reads when the
+  // contact sheet shrinks — a thin stick figure did not.
   function drawFarmer(state) {
     const f = state.farmer;
     const gap = f.gap;
@@ -724,80 +768,219 @@ export function createRenderer(canvas) {
     const gy = FIELD.groundY;
     const bob = Math.abs(Math.sin(f.anim)) * 6;
     const windup = f.windup > 0;
+    const close = gap < 16;
+    const surging = f.surge > 0;
     if (gap > 22) {
       const label = `${Math.round(gap)}m`;
       pill(fx - 20, gy - 214, 52, 26, 9, 'rgba(20,10,2,0.65)');
       text(label, fx + 6, gy - 195, 17, '#ffd9d0', 'center', '800');
     }
-    // Soft contact shadow under the farmer.
-    ellipse(fx + 4, gy + 4, 26, 6, 'rgba(20,10,2,0.28)');
+    // Soft contact shadow under the farmer, wider now he is bigger.
+    ellipse(fx + 4, gy + 4, 32, 7, 'rgba(20,10,2,0.28)');
     context.save();
     context.translate(fx, gy - bob);
-    // Boots and legs mid-stride.
-    const stride = Math.sin(f.anim) * 12;
-    context.strokeStyle = '#3a2a18';
-    context.lineWidth = 7;
-    context.lineCap = 'round';
+    // Lean into the chase — further forward the closer he gets; he
+    // rocks back a little while winding up a throw.
+    context.rotate(windup ? -0.06 : close ? 0.16 : 0.11);
+    context.scale(1.22, 1.22);
+    // Speed lines streaming behind him while he surges after a hit.
+    if (surging) {
+      context.strokeStyle = 'rgba(255,246,224,0.55)';
+      context.lineWidth = 3;
+      context.beginPath();
+      for (let i = 0; i < 3; i += 1) {
+        const ly = -34 - i * 24;
+        const lx = -66 - ((state.elapsed * 260 + i * 36) % 36);
+        context.moveTo(lx, ly);
+        context.lineTo(lx + 30, ly);
+      }
+      context.stroke();
+    }
+    // Dust kicked up by each stride.
+    const stride = Math.sin(f.anim);
+    const dustA = Math.max(0, Math.sin(f.anim * 2)) * 0.45;
+    context.fillStyle = `rgba(214,178,120,${dustA})`;
     context.beginPath();
-    context.moveTo(-6, -36);
-    context.lineTo(-6 + stride, 0);
-    context.moveTo(8, -36);
-    context.lineTo(8 - stride, 0);
-    context.stroke();
-    // Blue overalls over a red plaid shirt.
+    context.ellipse(-6 + stride * 14, -2, 9, 4, 0, 0, Math.PI * 2);
+    context.fill();
+    context.beginPath();
+    context.ellipse(8 - stride * 14, -1, 7, 3.5, 0, 0, Math.PI * 2);
+    context.fill();
+    // Legs — bent knees, blue overalls, brown boots at the end of each
+    // stride, instead of two straight sticks.
+    function leg(hipX, kneeX, footX) {
+      context.strokeStyle = '#24497f';
+      context.lineWidth = 9;
+      context.lineCap = 'round';
+      context.beginPath();
+      context.moveTo(hipX, -38);
+      context.lineTo(kneeX, -18);
+      context.lineTo(footX, -2);
+      context.stroke();
+      context.fillStyle = '#3a2a18';
+      context.beginPath();
+      context.ellipse(footX + 3, -2, 8, 4.5, 0, 0, Math.PI * 2);
+      context.fill();
+    }
+    leg(-5, -5 + stride * 8, -5 + stride * 15);
+    leg(9, 9 - stride * 8, 9 - stride * 15);
+    // Blue overalls over a red plaid shirt, with shoulder straps and
+    // brass buttons — a farmer, not a red rectangle.
     context.fillStyle = PALETTE.farmerOveralls;
-    context.fillRect(-12, -74, 30, 42);
+    context.fillRect(-14, -78, 34, 42);
     context.fillStyle = PALETTE.farmerShirt;
-    context.fillRect(-14, -92, 34, 22);
+    context.fillRect(-16, -96, 38, 22);
+    context.fillStyle = PALETTE.farmerOveralls;
+    context.fillRect(-12, -96, 6, 22);
+    context.fillRect(8, -96, 6, 22);
+    context.fillStyle = '#ffd23e';
+    context.beginPath();
+    context.arc(-9, -76, 2.2, 0, Math.PI * 2);
+    context.arc(11, -76, 2.2, 0, Math.PI * 2);
+    context.fill();
     context.strokeStyle = 'rgba(255,255,255,0.35)';
     context.lineWidth = 2;
     context.beginPath();
-    context.moveTo(-16, -84);
-    context.lineTo(22, -84);
-    context.moveTo(-16, -76);
-    context.lineTo(22, -76);
+    context.moveTo(-18, -88);
+    context.lineTo(24, -88);
+    context.moveTo(-18, -80);
+    context.lineTo(24, -80);
+    context.moveTo(-2, -96);
+    context.lineTo(-2, -74);
+    context.moveTo(10, -96);
+    context.lineTo(10, -74);
     context.stroke();
-    // Arms — one pumping, one raised with a knife when he winds up.
+    // Arms — both pumping while he runs; the throwing arm cocks high
+    // behind his head on a windup, knife in hand, with a white arc
+    // showing the throw that is coming.
+    const pump = Math.sin(f.anim) * 7;
     context.strokeStyle = PALETTE.farmerShirtDark;
-    context.lineWidth = 8;
+    context.lineWidth = 9;
+    context.lineCap = 'round';
     context.beginPath();
-    context.moveTo(-12, -88);
-    context.lineTo(-22, -68 + Math.sin(f.anim) * 6);
+    context.moveTo(-14, -92);
+    context.lineTo(-26, -76 + pump);
+    context.lineTo(-22, -62 + pump);
     context.stroke();
     context.beginPath();
-    context.moveTo(18, -88);
-    if (windup) context.lineTo(38, -118);
-    else context.lineTo(30, -70 - Math.sin(f.anim) * 6);
+    context.moveTo(20, -92);
+    if (windup) {
+      context.lineTo(36, -106);
+      context.lineTo(48, -128);
+    } else {
+      context.lineTo(32, -76 - pump);
+      context.lineTo(28, -62 - pump);
+    }
     context.stroke();
-    if (windup) drawKnife(44, 118, state.elapsed);
-    // Head: beard, nose, and a straw hat.
+    // Hands.
     context.fillStyle = PALETTE.farmerSkin;
     context.beginPath();
-    context.arc(4, -104, 12, 0, Math.PI * 2);
+    context.arc(-22, -62 + pump, 5, 0, Math.PI * 2);
+    context.fill();
+    if (windup) {
+      // The knife itself, drawn in the farmer's own coordinates — the
+      // old code called drawKnife here with world heights, which put
+      // the blade off the bottom of the screen, so his hand was empty.
+      context.beginPath();
+      context.arc(48, -128, 5, 0, Math.PI * 2);
+      context.fill();
+      context.save();
+      context.translate(48, -128);
+      context.rotate(-0.9);
+      context.fillStyle = PALETTE.knifeBlade;
+      context.beginPath();
+      context.moveTo(-4, -4);
+      context.lineTo(18, -4);
+      context.lineTo(28, 0);
+      context.lineTo(18, 4);
+      context.lineTo(-4, 4);
+      context.closePath();
+      context.fill();
+      context.strokeStyle = 'rgba(20,20,30,0.7)';
+      context.lineWidth = 1.5;
+      context.stroke();
+      context.fillStyle = PALETTE.knifeHandle;
+      context.fillRect(-14, -4, 11, 8);
+      context.restore();
+      // White throw arc sweeping over his head.
+      context.strokeStyle = 'rgba(255,255,255,0.75)';
+      context.lineWidth = 3;
+      context.beginPath();
+      context.arc(20, -112, 34, -2.4, -0.6);
+      context.stroke();
+    } else {
+      context.beginPath();
+      context.arc(28, -62 - pump, 5, 0, Math.PI * 2);
+      context.fill();
+    }
+    // Head: skin, a grey beard and nose, two eyes, and brows that
+    // slant angry when he closes in — plus an open shouting mouth.
+    context.fillStyle = PALETTE.farmerSkin;
+    context.beginPath();
+    context.arc(4, -108, 13, 0, Math.PI * 2);
     context.fill();
     context.fillStyle = '#8a8a8a';
     context.beginPath();
-    context.arc(4, -96, 9, 0, Math.PI);
+    context.arc(4, -99, 10, 0, Math.PI);
     context.fill();
     context.fillStyle = PALETTE.farmerSkin;
     context.beginPath();
-    context.arc(17, -104, 3, 0, Math.PI * 2);
+    context.arc(18, -108, 3.5, 0, Math.PI * 2);
+    context.fill();
+    // Eyes.
+    context.fillStyle = '#fff';
+    context.beginPath();
+    context.arc(7, -111, 3, 0, Math.PI * 2);
+    context.arc(14, -111, 3, 0, Math.PI * 2);
     context.fill();
     context.fillStyle = '#1c1410';
     context.beginPath();
-    context.arc(9, -107, 2, 0, Math.PI * 2);
+    context.arc(8, -111, 1.6, 0, Math.PI * 2);
+    context.arc(15, -111, 1.6, 0, Math.PI * 2);
     context.fill();
+    // Brows: flat while cruising, slanted down toward the nose when
+    // he is close or winding up — the chase reads on his face.
+    context.strokeStyle = '#3a2a18';
+    context.lineWidth = 2.5;
+    context.beginPath();
+    if (close || windup) {
+      context.moveTo(3, -118);
+      context.lineTo(10, -115);
+      context.moveTo(17, -118);
+      context.lineTo(11, -115);
+    } else {
+      context.moveTo(3, -117);
+      context.lineTo(10, -117);
+      context.moveTo(11, -117);
+      context.lineTo(18, -117);
+    }
+    context.stroke();
+    // Mouth: a small line while cruising, a wide shout when close.
+    if (close || windup) {
+      context.fillStyle = '#7a1e10';
+      context.beginPath();
+      context.ellipse(10, -99, 4.5, 5.5, 0, 0, Math.PI * 2);
+      context.fill();
+    } else {
+      context.strokeStyle = '#7a4a28';
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(7, -100);
+      context.lineTo(13, -100);
+      context.stroke();
+    }
+    // Straw hat, brim wide enough to read, with its red band.
     context.fillStyle = PALETTE.farmerHat;
     context.beginPath();
-    context.ellipse(4, -114, 20, 5, 0, 0, Math.PI * 2);
+    context.ellipse(4, -118, 23, 6, 0, 0, Math.PI * 2);
     context.fill();
-    context.fillRect(-7, -128, 20, 14);
+    context.fillRect(-8, -134, 22, 16);
     context.fillStyle = '#c0392b';
-    context.fillRect(-7, -117, 20, 3);
+    context.fillRect(-8, -121, 22, 4);
     // "!" when he is close enough to smell dinner.
     if (gap < 12) {
       const pulse = 0.7 + Math.sin(state.elapsed * 8) * 0.3;
-      text('!', 4, -152, 28, `rgba(255,70,50,${pulse})`, 'center', '900');
+      text('!', 4, -156, 30, `rgba(255,70,50,${pulse})`, 'center', '900');
     }
     context.restore();
   }
@@ -1032,15 +1215,18 @@ export function createRenderer(canvas) {
       text('The farmer finally got his hands on you…', 640, 168, 22, PALETTE.text, 'center', '700');
       text('the oven was already warm.', 640, 192, 22, PALETTE.text, 'center', '700');
     }
-    pill(390, 210, 500, 170, 18, PALETTE.panel, PALETTE.panelEdge);
-    text(`SCORE  ${score}`, 640, 258, 32, PALETTE.text, 'center', '900');
-    text(`BEST  ${Math.max(best, score)}`, 640, 290, 20, '#ffd23e', 'center', '800');
-    text(`Distance ${Math.floor(state.distance)}m  •  Corn ${state.corn}  •  Combo x${state.bestCombo}  •  Knives ${state.knivesDodged}`, 640, 322, 17, PALETTE.muted, 'center', '700');
-    if (escaped) text('RANK: FREE BIRD', 640, 350, 18, '#ffd23e', 'center', '900');
-    else if (score >= 1200) text('RANK: SO CLOSE — ALMOST A FREE BIRD', 640, 350, 18, '#ffd23e', 'center', '900');
-    else text('RANK: SUNDAY ROAST', 640, 350, 18, '#ffd23e', 'center', '900');
+    // The score panel sits to the RIGHT of centre, so the turkey at the
+    // freedom fence (screen x ~330) is fully visible in the empty space
+    // on the left — before, the centred panel covered half the bird.
+    pill(470, 210, 460, 170, 18, PALETTE.panel, PALETTE.panelEdge);
+    text(`SCORE  ${score}`, 700, 258, 32, PALETTE.text, 'center', '900');
+    text(`BEST  ${Math.max(best, score)}`, 700, 290, 20, '#ffd23e', 'center', '800');
+    text(`Distance ${Math.floor(state.distance)}m  •  Corn ${state.corn}  •  Combo x${state.bestCombo}  •  Knives ${state.knivesDodged}`, 700, 322, 17, PALETTE.muted, 'center', '700');
+    if (escaped) text('RANK: FREE BIRD', 700, 350, 18, '#ffd23e', 'center', '900');
+    else if (score >= 1200) text('RANK: SO CLOSE — ALMOST A FREE BIRD', 700, 350, 18, '#ffd23e', 'center', '900');
+    else text('RANK: SUNDAY ROAST', 700, 350, 18, '#ffd23e', 'center', '900');
     const blink = Math.floor(state.elapsed * 2) % 2 === 0;
-    if (blink) text('▶  PRESS SPACE OR CLICK TO RUN AGAIN  (R)', 640, 398, 22, '#fff6e0', 'center', '900');
+    if (blink) text('▶  PRESS SPACE OR CLICK TO RUN AGAIN  (R)', 700, 398, 22, '#fff6e0', 'center', '900');
   }
 
   // ---- one frame ----
