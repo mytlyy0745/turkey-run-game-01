@@ -705,6 +705,14 @@ export function createRenderer(canvas) {
   // streaming BEHIND it (knives fly to the right, so the trail runs
   // left). In the contact sheet the old knife was a sliver you could
   // barely see; this one is visible at a glance.
+  // Thickened again in the finals details pass: the cover blade still
+  // shrank to a thin white streak at half size, so the blade went
+  // ~35% thicker (half-height 8 -> 11, length untouched, same spin
+  // and trail) and gained a white halo under its dark edge — the halo
+  // is stroked first at width 6, then the fill, then the dark 2 px
+  // edge, leaving ~2 px of white rim outside the dark line. The
+  // handle gets the same white halo, for the same reason, on the
+  // danger frame where it crosses the oven flames.
   // alpha fades a knife that has already flown past the turkey: a
   // spent knife keeps flying right until it despawns 70 m ahead, so
   // without the fade the frame always carries one lonely blade way
@@ -715,6 +723,8 @@ export function createRenderer(canvas) {
     const cy = FIELD.groundY - y;
     const spin = t * 9;
     // Ghost blades: afterimages of the spin, fading with distance.
+    // Same thickened shape as the blade itself, so they read as
+    // afterimages of this blade, not a thinner one behind it.
     for (const [off, ga] of [[-36, 0.3], [-68, 0.15]]) {
       context.save();
       context.translate(sx + off, cy);
@@ -722,11 +732,11 @@ export function createRenderer(canvas) {
       context.globalAlpha = ga * a;
       context.fillStyle = PALETTE.knifeBlade;
       context.beginPath();
-      context.moveTo(-24, -8);
-      context.lineTo(18, -8);
+      context.moveTo(-24, -11);
+      context.lineTo(18, -11);
       context.lineTo(32, 0);
-      context.lineTo(18, 8);
-      context.lineTo(-24, 8);
+      context.lineTo(18, 11);
+      context.lineTo(-24, 11);
       context.closePath();
       context.fill();
       context.restore();
@@ -747,34 +757,53 @@ export function createRenderer(canvas) {
     context.moveTo(sx - 38, cy + 10);
     context.lineTo(sx - 100, cy + 16);
     context.stroke();
-    // The blade itself, ~35% longer and wider than before.
+    // The blade itself, ~35% longer and wider than before, and
+    // ~35% thicker again in the finals details pass (half-height
+    // 8 -> 11). Length, position and spin are untouched.
     context.save();
     context.translate(sx, cy);
     context.rotate(spin);
-    context.fillStyle = PALETTE.knifeBlade;
     context.beginPath();
-    context.moveTo(-24, -8);
-    context.lineTo(18, -8);
+    context.moveTo(-24, -11);
+    context.lineTo(18, -11);
     context.lineTo(32, 0);
-    context.lineTo(18, 8);
-    context.lineTo(-24, 8);
+    context.lineTo(18, 11);
+    context.lineTo(-24, 11);
     context.closePath();
+    // White halo first, then the fill over its inner half, then the
+    // dark edge: ~2 px of white rim survives outside the dark line.
+    context.strokeStyle = 'rgba(255,255,255,0.95)';
+    context.lineWidth = 6;
+    context.stroke();
+    context.fillStyle = PALETTE.knifeBlade;
     context.fill();
     context.strokeStyle = 'rgba(20,20,30,0.8)';
     context.lineWidth = 2;
     context.stroke();
     context.fillStyle = PALETTE.knifeHandle;
-    context.fillRect(-40, -8, 17, 16);
+    context.fillRect(-40, -11, 17, 22);
     context.fillStyle = 'rgba(20,20,30,0.5)';
-    context.fillRect(-40, -8, 4, 16);
+    context.fillRect(-40, -11, 4, 22);
     // The handle gets the same dark outline as the blade: in the
     // danger frame the handle crosses the oven's flame tongues, and
     // without an edge the dark wood melts into the orange flame.
     // The blade already had this outline; the handle was the only
-    // un-outlined part of the knife.
+    // un-outlined part of the knife. The white halo goes under the
+    // dark edge here too: the dark edge alone left a faint residue
+    // at half size. Only the three exposed sides are outlined —
+    // the fourth butts against the blade, and a white rim there
+    // would stripe across the blade's rear.
+    context.beginPath();
+    context.moveTo(-23, -11);
+    context.lineTo(-40, -11);
+    context.lineTo(-40, 11);
+    context.lineTo(-23, 11);
+    context.strokeStyle = 'rgba(255,255,255,0.95)';
+    context.lineWidth = 6;
+    context.stroke();
     context.strokeStyle = 'rgba(20,20,30,0.8)';
     context.lineWidth = 2;
-    context.strokeRect(-40, -8, 17, 16);
+    context.stroke();
     context.restore();
     // Never leak the fade to whatever is drawn next.
     context.globalAlpha = 1;
@@ -1099,7 +1128,7 @@ export function createRenderer(canvas) {
   // and a close-chase lunge with an angry shouting face. He is drawn
   // ~22% bigger than before, so the second lead still reads when the
   // contact sheet shrinks — a thin stick figure did not.
-  function drawFarmer(state, scale) {
+  function drawFarmer(state, scale, screen) {
     const f = state.farmer;
     const gap = f.gap;
     // The pursuer is always on screen, clamped to the left edge: the
@@ -1113,7 +1142,10 @@ export function createRenderer(canvas) {
     const windup = f.windup > 0;
     const close = gap < 16;
     const surging = f.surge > 0;
-    if (gap > 22) {
+    // No gap label on the title: the race has not started, so the
+    // metres mean nothing there and the pill is clutter at the
+    // left edge. It stays on every screen where the chase is live.
+    if (gap > 22 && screen !== SCREEN_TITLE) {
       const label = `${Math.round(gap)}m`;
       // The label never hugs the left edge: when the farmer is
       // clamped to the edge his label used to start at x=14, which
@@ -1474,7 +1506,7 @@ export function createRenderer(canvas) {
   }
 
   // ---- HUD ----
-  function drawHud(state, best) {
+  function drawHud(state, best, screen) {
     const stage = STAGES[state.stage];
     // The bar is OPAQUE now, not 0.72 alpha: a translucent bar let the
     // sky show through as smudges — clouds behind it read as grey
@@ -1525,22 +1557,27 @@ export function createRenderer(canvas) {
     marker(tx, '#ffd23e');
     marker(Math.abs(tx - fxm) < 16 ? fxm - 14 : fxm, '#ff5a3c');
     text(`${Math.floor(state.distance)}m / ${TOTAL_DISTANCE}m`, barX + barW / 2, 66, 17, PALETTE.text, 'center', '700');
-    // Hearts on the right.
-    text('LIVES', 1150, 34, 15, PALETTE.muted, 'left', '800');
-    for (let i = 0; i < LIVES; i += 1) {
-      const hx = 1146 + i * 30;
-      const alive = i < state.lives;
-      context.fillStyle = alive ? '#ff5a3c' : 'rgba(255,255,255,0.18)';
-      context.beginPath();
-      context.arc(hx + 8, 52, 8, 0, Math.PI * 2);
-      context.arc(hx + 20, 52, 8, 0, Math.PI * 2);
-      context.fill();
-      context.beginPath();
-      context.moveTo(hx, 56);
-      context.lineTo(hx + 28, 56);
-      context.lineTo(hx + 14, 70);
-      context.closePath();
-      context.fill();
+    // Hearts on the right — hidden on the end screen: the run is
+    // over, so the lives left mean nothing there, and the headline
+    // owns the frame, so the hearts are clutter. They stay on every
+    // screen where the chase is still live.
+    if (screen !== SCREEN_OVER) {
+      text('LIVES', 1150, 34, 15, PALETTE.muted, 'left', '800');
+      for (let i = 0; i < LIVES; i += 1) {
+        const hx = 1146 + i * 30;
+        const alive = i < state.lives;
+        context.fillStyle = alive ? '#ff5a3c' : 'rgba(255,255,255,0.18)';
+        context.beginPath();
+        context.arc(hx + 8, 52, 8, 0, Math.PI * 2);
+        context.arc(hx + 20, 52, 8, 0, Math.PI * 2);
+        context.fill();
+        context.beginPath();
+        context.moveTo(hx, 56);
+        context.lineTo(hx + 28, 56);
+        context.lineTo(hx + 14, 70);
+        context.closePath();
+        context.fill();
+      }
     }
     // Combo pill under the score.
     if (state.combo >= 2) {
@@ -1879,7 +1916,7 @@ export function createRenderer(canvas) {
       context.fillRect(gx - 170, gy - 170, 340, 340);
     }
     drawTurkey(state, turkeyScale, escaped);
-    drawFarmer(state, escaped ? 1.0 : 1.22);
+    drawFarmer(state, escaped ? 1.0 : 1.22, screen);
     // Haystacks stand in front, so a hiding turkey really disappears.
     // A passed haystack fades with the rest, for the same reason: the
     // farmer at the left edge must never hide behind one.
@@ -1904,7 +1941,7 @@ export function createRenderer(canvas) {
     context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
     drawField(state, screen);
     if (screen === SCREEN_TITLE) drawTitle(state, best);
-    else if (screen === SCREEN_PAUSED) { drawHud(state, best); drawPaused(); }
+    else if (screen === SCREEN_PAUSED) { drawHud(state, best, screen); drawPaused(); }
     // Over screen: the celebration is drawn FIRST and the HUD last.
     // The end frame's gold glow and dim overlay used to paint over
     // the HUD bar (the bar measured R std 29.2 in its plain zone even
@@ -1912,8 +1949,8 @@ export function createRenderer(canvas) {
     // y=75, 3 px under the bar's bottom edge — so the headline and
     // subtitle moved down 4 px as well, and the HUD is now the
     // topmost layer on every screen, identical in all four frames.
-    else if (screen === SCREEN_OVER) { drawOver(state, best, state.escaped); drawHud(state, best); }
-    else drawHud(state, best);
+    else if (screen === SCREEN_OVER) { drawOver(state, best, state.escaped); drawHud(state, best, screen); }
+    else drawHud(state, best, screen);
   }
 
   resize();
