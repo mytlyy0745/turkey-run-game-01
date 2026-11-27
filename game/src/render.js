@@ -785,23 +785,28 @@ export function createRenderer(canvas) {
   // with wings thrown wide, a low slide, and a dazed hurt wobble. The
   // tail fan, wing angle, legs and eye all change with the pose, so the
   // bird looks alive instead of like one frozen cut-out.
-  // scale is 1.12 in play and 1.20 on the title, so the bird reads
-  // bigger on the contact sheet. The title scale is capped by the
-  // instruction panel above it: the whole title text block moved up
-  // 8 px (panel bottom y=280) in round 15, and in round 16 the panel
-  // was tightened as well (lines 210/238/264 -> 206/232/256, height
-  // 100 -> 88, bottom y=268) to make room — at 1.20 the head still
-  // clears it by ~10 px, measured off the screenshot (head top
-  // y=289 at 1.09, so ~278 at 1.20, panel bottom 268). The scale
-  // pivots on the feet, so the bird grows up and out while its feet
-  // stay on the ground line.
-  function drawTurkey(state, scale, celebrate) {
+  // scale is 1.12 in play and 1.30 on the title, so the bird reads
+  // bigger on the contact sheet. The title bird no longer stands
+  // under the instruction panel at all (round 21): it moved right
+  // into the open sky beside the panel (dx +679, centre x 1040),
+  // so the panel's bottom edge no longer caps it — 1.20 was the
+  // ceiling while it stood underneath (head top y=278 at 1.20,
+  // panel bottom 268, 10 px gap; at 1.30 the head would reach
+  // y=270 and touch). The scale pivots on the feet, so the bird
+  // grows up and out while its feet stay on the ground line. The
+  // dx is title-only: play and the end screen keep dx 0, and the
+  // farmer, the oven and the panel never move.
+  function drawTurkey(state, scale, celebrate, dx) {
     const p = state.player;
     const gy = FIELD.groundY;
     const air = p.y > 0;
     const squashY = p.squash > 0 ? 1 - p.squash * 0.18 : 1;
     const squashX = p.squash > 0 ? 1 + p.squash * 0.18 : 1;
-    const cx = TURKEY_X + TURKEY.width / 2;
+    // dx shifts the whole bird (shadow, dust, wind lines; the warm
+    // glow is moved separately in drawField) without touching
+    // TURKEY_X, so play, the end screen and every collision stay
+    // exactly where they were — only the title passes a non-zero dx.
+    const cx = TURKEY_X + TURKEY.width / 2 + (dx || 0);
     const feetY = gy - p.y;
     const ducking = p.ducking || p.hiding > 0;
     const bodyH = ducking ? 46 : 74;
@@ -1809,14 +1814,21 @@ export function createRenderer(canvas) {
   // ---- one frame ----
   function drawField(state, screen) {
     const stage = STAGES[state.stage];
-    // The turkey is drawn 12% bigger everywhere, and 20% bigger on the
-    // title: the whole title text block moved up 8 px in round 15
-    // (panel bottom y=280), and in round 16 the panel was tightened
-    // as well (bottom now y=268), so the bird's head — which rises
-    // ~11 px from 1.09 to 1.20 — still clears the panel by ~10 px,
-    // measured off the screenshot. At 1.09 the gain over 1.0 was a
-    // barely visible ring; 1.20 is the biggest the title bird can go
-    // without touching the panel or squeezing the text block further.
+    // The turkey is drawn 12% bigger everywhere, and 30% bigger on
+    // the title — and, since round 21, standing in the open sky
+    // right of the instruction panel instead of underneath it
+    // (centre x 361 -> 1040, dx +679): the panel's bottom edge used
+    // to cap the bird at 1.20 (head top y=278 at 1.20, panel bottom
+    // 268, 10 px gap; at 1.30 the head would reach y=270 and touch
+    // it). Moved, the head (x ~1058-1105, top y~270) sits wholly
+    // clear of the panel (right edge x=1030), the tail fan (top
+    // y~275-283) still clears the panel bottom by >=7 px where it
+    // passes under the panel's right end, the beak (~1105) stays
+    // ~25 px clear of the right barn's roof (~1130), and the feet
+    // stay clear of the foreground pumpkin at x=1096 (the body at
+    // pumpkin height only reaches x~1039). The OVEN! label ends
+    // ~x920, the tail starts ~x975. Measured off the screenshot,
+    // not guessed — see the round-21 numbers in the commit.
     // On the escape screen it is 40% bigger and leaping
     // with its wings thrown wide: the end frame's hero used to stand
     // behind the white fence pickets, smaller than the farmer at the
@@ -1824,7 +1836,8 @@ export function createRenderer(canvas) {
     // and owns the frame — and the farmer is drawn a touch smaller
     // there, so he stops outshining the bird he failed to catch.
     const escaped = screen === SCREEN_OVER && state.escaped;
-    const turkeyScale = screen === SCREEN_TITLE ? 1.20 : escaped ? 1.4 : 1.12;
+    const turkeyScale = screen === SCREEN_TITLE ? 1.30 : escaped ? 1.4 : 1.12;
+    const turkeyDx = screen === SCREEN_TITLE ? 679 : 0;
     drawSky(state, stage, screen);
     drawHills(state, stage, screen);
     drawGround(state, stage);
@@ -1867,9 +1880,12 @@ export function createRenderer(canvas) {
     // own browns (#8a5a2e body), so at half size it sank into the
     // hillside; the glow lifts the hill behind it into a lit backdrop
     // without moving the bird, and it never touches another screen —
-    // the instruction panel is drawn on top of it afterwards.
+    // the instruction panel is drawn on top of it afterwards. The
+    // glow moves with the bird (gx follows turkeyDx): since round 21
+    // the title bird stands at x=1040, and a glow left behind at
+    // x=361 would light empty hillside while the bird stood dark.
     if (screen === SCREEN_TITLE) {
-      const gx = TURKEY_X + TURKEY.width / 2;
+      const gx = TURKEY_X + TURKEY.width / 2 + turkeyDx;
       const gy = FIELD.groundY - 55;
       const glow = context.createRadialGradient(gx, gy, 10, gx, gy, 170);
       glow.addColorStop(0, 'rgba(255,232,170,0.6)');
@@ -1878,7 +1894,7 @@ export function createRenderer(canvas) {
       context.fillStyle = glow;
       context.fillRect(gx - 170, gy - 170, 340, 340);
     }
-    drawTurkey(state, turkeyScale, escaped);
+    drawTurkey(state, turkeyScale, escaped, turkeyDx);
     drawFarmer(state, escaped ? 1.0 : 1.22);
     // Haystacks stand in front, so a hiding turkey really disappears.
     // A passed haystack fades with the rest, for the same reason: the
