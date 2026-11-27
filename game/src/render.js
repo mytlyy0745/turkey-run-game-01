@@ -241,7 +241,7 @@ export function createRenderer(canvas) {
       context.fill();
     }
     // Grass tufts on the verge above the track, sparse and three-bladed.
-    for (let i = 0; i < 26; i += 1) {
+    for (let i = 0; i < 34; i += 1) {
       const wx = i * 211 + ((i * 131) % 70);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
       const gy = FIELD.groundY + 4 + ((i * 41) % 26);
@@ -258,11 +258,24 @@ export function createRenderer(canvas) {
       context.stroke();
     }
     // A few flat fallen leaves resting on the verge.
-    for (let i = 0; i < 14; i += 1) {
+    for (let i = 0; i < 20; i += 1) {
       const wx = i * 263 + ((i * 71) % 80);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
       const ly = FIELD.groundY + 8 + ((i * 29) % 22);
       ellipse(sx, ly, 6, 3.5, leafCols[i % 3]);
+    }
+    // A few tiny autumn wildflowers on the verge — small dots of
+    // orange and gold that break up the long empty stretches of track
+    // between the farmer and the next oven, without shouting for
+    // attention. All three ground details are pure functions of the
+    // scroll, so they never touch the gameplay random stream.
+    const flowerCols = ['#e86a1e', '#f2c14e', '#d94f30'];
+    for (let i = 0; i < 10; i += 1) {
+      const wx = i * 331 + ((i * 97) % 90);
+      const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
+      const fy = FIELD.groundY + 10 + ((i * 53) % 20);
+      ellipse(sx, fy, 3, 3, flowerCols[i % 3]);
+      ellipse(sx + 4, fy - 4, 2, 2, flowerCols[(i + 1) % 3]);
     }
     for (const s of state.scenery) {
       const sx = TURKEY_X + (s.at - state.distance) * PX_PER_M;
@@ -942,6 +955,24 @@ export function createRenderer(canvas) {
       pill(fx - 20, gy - 214, 52, 26, 9, 'rgba(20,10,2,0.65)');
       text(label, fx + 6, gy - 195, 17, '#ffd9d0', 'center', '800');
     }
+    // A pool of sunlit dirt under his feet, drawn before the shadow:
+    // his dark boots used to melt into the dark track and whatever
+    // faded hay or tree stood behind him, so the ground right under
+    // him is lit a little warmer and lighter — the boots read against
+    // it at a glance, and the farmer lifts off the background. A
+    // squashed radial gradient, so the light fades out softly in
+    // every direction with no hard edge.
+    context.save();
+    context.translate(fx + 4, gy + 6);
+    context.scale(1, 0.25);
+    const patch = context.createRadialGradient(0, 0, 4, 0, 0, 92);
+    patch.addColorStop(0, 'rgba(247,220,158,0.55)');
+    patch.addColorStop(1, 'rgba(247,220,158,0)');
+    context.fillStyle = patch;
+    context.beginPath();
+    context.arc(0, 0, 78, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
     // Soft contact shadow under the farmer, wider now he is bigger.
     ellipse(fx + 4, gy + 4, 32, 7, 'rgba(20,10,2,0.28)');
     context.save();
@@ -1385,7 +1416,11 @@ export function createRenderer(canvas) {
     if (best > 0) text(`BEST ESCAPE  ${best}`, 640, 322, 20, '#ffd23e', 'center', '900');
     const blink = Math.floor(state.elapsed * 2) % 2 === 0;
     if (blink) text('▶  PRESS SPACE OR CLICK TO RUN', 640, 362, 26, '#fff6e0', 'center', '900');
-    text('A 1,500 m dash through the farmyard, the woods, the riverbank — to the freedom fence.', 640, 452, 16, 'rgba(255,246,224,0.75)', 'center', '700');
+    // The closing line sits 10 px lower than before (y=462): the
+    // turkey's tail fan used to end only ~47 px above it, and the line
+    // reads as crowded under the bird. Now the tail has room to
+    // breathe, and the line still clears the bottom edge by ~14 px.
+    text('A 1,500 m dash through the farmyard, the woods, the riverbank — to the freedom fence.', 640, 462, 16, 'rgba(255,246,224,0.75)', 'center', '700');
     // Foreground corners, so the bottom of the title is not empty stage:
     // a pumpkin pile on the left, a fence run and a hay bale on the
     // right. The pile sits clear of the farmer (left edge) with room to
