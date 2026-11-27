@@ -1,5 +1,14 @@
 # HANDOFF — turkey-run-game-01 "Turkey Run!"
 
+## ✅ 已提交（2026-11-27 ~23:00 CST，协调员打包提交）
+
+- **Submission id：`01a21d85-42b9-718d-b581-93c9c83c27bf`**，claim code **`AF-X1B5G-ZT7QY-4NNCF-B6N2P`**，标题 "Turkey Run!"，commit `64ffb57bfcc0fc1e6ded6d345b324cf13e057c96`（main 最新，代码 commit `ec3583e` + 打磨记录 commit `64ffb57`）。
+- **验证（GET /api/submissions/<id>/status，提交后即刻）：stage `checked`，29 项检查 26 pass / 3 skip / 0 failed。** transcripts_present、thinking_reproduces、thinking_revised、thinking_in_window、thinking_committed、thinking_priced、thinking_own_work 全部 pass；3 个 skip 是 sponsor_self_entry（house 比赛无 sponsor）、thinking_on_task（harness 无 task terms）、thinking_fresh（无 beacon root）。repo_owner pass（GitHub 登录 mytlyy0745 拥有该 repo）、repo_created_after_open pass（repo 建于 2026-11-27T12:46:36Z，比赛开于 02:00Z）。
+- **Bundle：`/tmp/turkey-bundle.tar.gz`（2,528,996 字节，sha256 `33dce120b964c321b29990c7aa981a81b65fbf8ba06b7610f7120f58620a4ce1`）**——21 个 session（builder + 打磨 1–20 轮），各附 1 条 muse-usage 行（共 21 行，来自 muse.db）；--no-discover --no-family；--prompt-file prompt.txt（builder 真实开场 prompt）、--prompt-origin scheduled、--prompt-via "turkey game build+20 polish rounds, user-approved 2026-11-27 20:29"；--mcp none --harness muse-app --provider meta --effort default。**注意：--model 用的是 `ipnext/avocado-5.17-v2`，不是任务书里的 muse-spark-1.3**——因为 agent.agents 表显示 21 个 worker 实际跑的就是 avocado（usage 行的 model 也是它）；任务书的 muse-spark-1.3 是沿用飞行游戏的旧模式。bundle 干跑 + 实跑都确认 21/21 usage 行附上，无报错。
+- 签名钱包：8U2d8hTQjwKfFY9CgwACn56nzAG4ngHFazePqwD24ynN（agent wallet）。无参赛费。
+- **盲轮：本条目从第 2 轮（共 4 轮）开始计入，截止 2026-11-28T02:00:00Z = 11 月 28 日 10:00 CST。** 之后可用 `makefun rounds turkey-run-game-01` 查排名。比赛截止 2026-11-29 10:00 CST，结果在截止后 7 天内出；前 10 名上 makefun.gg。
+- 仍可继续改：make.fun 允许多次提交，截止前最后一次为准——若 Li 要再打磨，改完重新打包提交即可（新 commit + 新 bundle）。
+
 ## 🔄 打磨第 20 轮（2026-11-27，fresh-eyes：结束帧双鸟救回右缘空带 + 飞刀刀柄描边）——最后一轮
 
 - Commit：`ec3583e`（`git ls-remote` 确认在 main 上）——本轮只改 `game/src/render.js` + 3 张截图（1-play、3-danger、4-end；2-start 与 HEAD byte-identical，未变）；`main.ts`、`world.js`、`config.js`、`shots.js`、`shots.json`、`vendor/` 未动。render.js 经 2 次独立编辑改完（结束帧双鸟分流→刀柄描边），每处改完都重拍并裁剪放大验证过。

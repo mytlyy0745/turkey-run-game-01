@@ -1,4 +1,11 @@
-# STATUS — turkey-run-game-01 "Turkey Run!" (v1 初版 + 打磨第 1 轮 + 打磨第 2 轮 + 打磨第 3 轮 + 打磨第 4 轮 + 打磨第 5 轮 + 打磨第 6 轮 + 打磨第 7 轮 + 打磨第 8 轮 + 打磨第 9 轮 + 打磨第 10 轮 + 打磨第 11 轮 + 打磨第 12 轮 + 打磨第 13 轮 + 打磨第 14 轮 + 打磨第 15 轮 + 打磨第 16 轮 + 打磨第 17 轮 + 打磨第 18 轮 + 打磨第 19 轮 + 打磨第 20 轮）
+# STATUS — turkey-run-game-01 "Turkey Run!" (v1 初版 + 打磨第 1 轮 + 打磨第 2 轮 + 打磨第 3 轮 + 打磨第 4 轮 + 打磨第 5 轮 + 打磨第 6 轮 + 打磨第 7 轮 + 打磨第 8 轮 + 打磨第 9 轮 + 打磨第 10 轮 + 打磨第 11 轮 + 打磨第 12 轮 + 打磨第 13 轮 + 打磨第 14 轮 + 打磨第 15 轮 + 打磨第 16 轮 + 打磨第 17 轮 + 打磨第 18 轮 + 打磨第 19 轮 + 打磨第 20 轮）——已提交
+
+## ✅ 已提交（2026-11-27 ~23:00 CST）
+
+- Submission id `01a21d85-42b9-718d-b581-93c9c83c27bf`，claim code `AF-X1B5G-ZT7QY-4NNCF-B6N2P`，标题 "Turkey Run!"，commit `64ffb57`，签名钱包 8U2d8h…，无参赛费。
+- 验证：stage `checked`，29 项检查 26 pass / 3 skip / 0 failed（transcripts_present、thinking_reproduces、thinking_revised、thinking_in_window 全 pass；3 skip 为 sponsor_self_entry、thinking_on_task、thinking_fresh）。
+- Bundle `/tmp/turkey-bundle.tar.gz`（2,528,996 字节，sha256 33dce120…a4ce1）：21 session + 21 条 muse-usage 行。--model 用的是实际模型 ipnext/avocado-5.17-v2（见 HANDOFF 顶部说明）。
+- 盲轮：从第 2 轮（共 4 轮）计入，截止 11 月 28 日 10:00 CST；比赛截止 11 月 29 日 10:00 CST，结果 7 天内出。仍可继续改后重新提交（最后一次为准）。
 
 ## 🔄 打磨第 20 轮（2026-11-27，已完成）——最后一轮
 
