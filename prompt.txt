@@ -1,0 +1,47 @@
+你是火鸡逃命游戏的初版 builder。任务：从零做出一个完整可玩的火鸡逃命游戏，并提交到 GitHub，全部按 make.fun 比赛要求来。这是 21 步（初版 + 20 轮打磨）里的第 1 步，你只做初版；打磨由后面的专人接手。
+
+## 比赛
+- slug: turkey-run-game-01，标题 "Make the best turkey escape game"，主办方 make.fun。
+- 总奖金 $250（第1名$50，第2名$35，第3名$25，第4–10名各$10，第11–20名各$7），免费参赛。
+- 截止 2026-11-29 10:00 CST（2026-11-29T02:00:00Z）。比赛开放于 2026-11-27 10:00 CST——你的 session 现在开始，符合 thinking_in_window。
+- 评委：AI 两两对比截图 + 源码大纲打分，胜率定排名；前 10 名的游戏在 makefun.gg 上可玩。所以截图表现力、HUD 清晰度、场景辨识度最重要。
+
+## 游戏要求（已 live 核实，以此为准）
+- 桌面浏览器运行，静态文件，无网络请求，键盘+鼠标操作。
+- 玩家是一只火鸡，逃命不被做成感恩节晚餐；被农夫追赶，躲烤箱和 carving knife（菜刀）。
+- 必须有：标题画面、进行中的画面带 HUD（分数/距离/生命）、结束画面（被抓或逃脱）带重开。
+- 完全原创的创意、美术、音效、名字，不能抄商业游戏。
+- 交付物：公开 GitHub repo（Li 的账号 mytlyy0745，比赛开放后创建）、根目录 main.ts（Node 22）、vendor/makefun-game.ts 从 kit 原样复制不得改动、game/（静态文件，index.html 能在桌面 Chrome 打开并游玩，所有加载文件都在 game/ 下）、screenshots/ 下 3–4 张截图（必须是游戏自身代码的真实渲染）、AI 会话 transcripts。
+
+## 工作目录与 repo
+- 本地工作目录：~/workspace/make-fun/turkey-run-game-01/
+- GitHub repo：https://github.com/mytlyy0745/turkey-run-game-01（公开，MIT LICENSE）。
+- kit：~/workspace/make-fun/turkey-run-game-01-kit/（按 ~/workspace/custom-skills/make-fun/SKILL.md 的方法取 kit；参考飞行游戏 ~/workspace/make-fun/best-flight-game-20261126/kit/ 的做法）。
+- 把你的开场 prompt 原文保存到 ~/workspace/make-fun/turkey-run-game-01/prompt.txt（打包时要用）。
+- README 用 live readme_template（GET /api/competitions/turkey-run-game-01/requirements）：3 个 make.fun live badge + bounty 链接；GitHub About：homepage = https://make.fun/bounty/turkey-run-game-01，topics 含 makefun，description 提到 make.fun。
+
+## 游戏设计（参考飞行游戏 Sky Courier 的成功经验，见 ~/workspace/make-fun/best-flight-game-20261126/HANDOFF.md）
+- 纯 2D canvas，不用任何库，不用网络资源（字体/图片/音效全部本地化或代码绘制，WebAudio 合成音效）。
+- 玩法要有深度，不要只有一个单调循环。建议：多段式逃亡（例如：农场院子 → 树林 → 河边 → 栅栏终点），每段有不同机制；农夫 AI 追赶（速度随距离/时间变化）；烤箱（地面固定危险区）和飞刀（投掷物）两种危险；可收集的道具（玉米粒加分、金南瓜无敌/加速、羽毛护盾）；连击/连锁加分；距离 + 分数 + 生命 HUD；难度随距离递增。
+- 控制：方向键/WASD 移动，空格跳/冲刺，鼠标也可操控，P 暂停，M 静音，R 重开。
+- 画面：农场秋色场景（干草堆、栅栏、南瓜、落叶、远山）、火鸡造型要一眼认出是火鸡（羽毛、肉垂、尾羽）、农夫造型清晰、HUD 大字清晰、标题画面有游戏名 + 火鸡 + 农夫对峙的舞台感。
+- 截图 staging：像飞行游戏一样做一个 autopilot/固定种子摆拍（shots），保证 4 张截图各有代表性：1-play（逃亡中，农夫在后、HUD 清晰）做封面、2-start（标题）、3-danger（躲烤箱/飞刀的紧张瞬间）、4-end（逃脱或被抓的结束画面）。
+- 确定性：seeded RNG，同一 seed 两次运行结果 byte-identical。
+- 公平性：无操作必被抓（不能站着赢），乱按/一直冲也大概率被抓；实测并记录。
+
+## 硬性要求（之前吃过亏的，一个都不能违反）
+- main.ts 必须用你自己的话重写，不能照抄 kit starter（thinking_reproduces 会拒）。
+- 必须做真正的 revision pass：写、运行、编辑改进、再运行；至少一个文件的最终内容来自 ≥2 条 assistant 写/编辑消息（thinking_revised）。
+- main.ts 不要 rm -rf 输出目录（grader 会 bind-mount 空目录，rm -rf 会 EBUSY 失败）；只清目录内容。输出到 $MAKEFUN_OUTPUT_DIR（或 /output），用 kit 的 buildDossier 写 dossier.json（< 1.5 MiB）。
+- 截图：1280×720 JPEG q82，每张 ≤ 256 KiB，3–4 张。
+
+## 验证（提交前必须全部通过，如实记录）
+- node --check 所有 game 文件；本地 serve 后无 console 报错、无外部 URL。
+- 用 autopilot/固定种子实测多轮：记录分数范围、逃脱/被抓比例、道具收集数；同一 seed 两次 byte-identical。
+- 公平性实测：无操作、一直冲、随机按键三种情况下的结果。
+- 4 张截图逐张目视检查（火鸡、农夫、HUD、场景都要看得见）。
+- kit check：MAKEFUN_OUTPUT_DIR=out1/out2 各跑一次 node main.ts，两次输出 byte-identical。
+- commit + push 到 main，git ls-remote 确认 commit 在远端。
+
+## 交付
+完成后汇报：repo 地址、最终 commit sha、游戏玩法概述、实测数据（分数范围、逃脱率、公平性结果）、截图检查结果、kit check 结果。并把完整过程写进 ~/workspace/make-fun/turkey-run-game-01/HANDOFF.md 和 STATUS.md（后续 20 轮打磨要靠它们了解 repo）。只做初版，不要提交参赛（提交由协调员在 20 轮打磨后统一做）。

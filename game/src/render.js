@@ -1,0 +1,854 @@
+// Drawing only: the world's state and the current screen in, pixels out.
+// The 1280x480 playfield is scaled to fit the window and centred. Every
+// picture is drawn from code — layered autumn skies, parallax hills,
+// trees, fences and pumpkins, a turkey you can recognise at a glance and
+// a farmer in hot pursuit, with dust, feathers, embers and falling leaves
+// on top, and a big clear HUD. No image, font or sound ever leaves game/.
+import { FIELD, PX_PER_M, TURKEY_X, TOTAL_DISTANCE, TURKEY, FARMER, LIVES, FONT, PALETTE, STAGES } from './config.js';
+import { KIND_OVEN, KIND_FENCE, KIND_BALE, KIND_HAYSTACK, KIND_CORN, KIND_PUMPKIN, KIND_FEATHER, KIND_KNIFE } from './world.js';
+
+export const SCREEN_TITLE = 'title';
+export const SCREEN_PLAY = 'play';
+export const SCREEN_PAUSED = 'paused';
+export const SCREEN_OVER = 'over';
+
+const STAGE_LEN = TOTAL_DISTANCE / STAGES.length;
+
+function lerp(a, b, t) { return a + (b - a) * t; }
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+export function createRenderer(canvas) {
+  const context = canvas.getContext('2d');
+  const view = { scale: 1, x: 0, y: 0 };
+  const fonts = new Map();
+
+  function resize() {
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.round(window.innerWidth * ratio);
+    const height = Math.round(window.innerHeight * ratio);
+    canvas.width = width;
+    canvas.height = height;
+    view.scale = Math.min(width / FIELD.width, height / FIELD.height);
+    view.x = (width - FIELD.width * view.scale) / 2;
+    view.y = (height - FIELD.height * view.scale) / 2;
+  }
+
+  function text(value, x, y, size, color, align, weight) {
+    const key = `${size}|${weight || ''}`;
+    if (!fonts.has(key)) fonts.set(key, `${weight ? weight + ' ' : ''}${size}px ${FONT}`);
+    context.font = fonts.get(key);
+    context.fillStyle = color;
+    context.textAlign = align || 'left';
+    context.textBaseline = 'alphabetic';
+    context.fillText(value, x, y);
+  }
+
+  function pill(x, y, w, h, r, fill, stroke) {
+    context.beginPath();
+    context.moveTo(x + r, y);
+    context.arcTo(x + w, y, x + w, y + h, r);
+    context.arcTo(x + w, y + h, x, y + h, r);
+    context.arcTo(x, y + h, x, y, r);
+    context.arcTo(x, y, x + w, y, r);
+    context.closePath();
+    context.fillStyle = fill;
+    context.fill();
+    if (stroke) { context.strokeStyle = stroke; context.lineWidth = 2; context.stroke(); }
+  }
+
+  function ellipse(x, y, rx, ry, color) {
+    context.fillStyle = color;
+    context.beginPath();
+    context.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  // ---- sky, sun, clouds, hills ----
+  function drawSky(state, stage) {
+    const g = context.createLinearGradient(0, 0, 0, FIELD.groundY);
+    g.addColorStop(0, stage.skyTop);
+    g.addColorStop(0.55, stage.skyMid);
+    g.addColorStop(1, stage.skyBot);
+    context.fillStyle = g;
+    context.fillRect(0, 0, FIELD.width, FIELD.groundY);
+    // Low autumn sun with a warm halo.
+    const sunX = 1020, sunY = 86;
+    const glow = context.createRadialGradient(sunX, sunY, 8, sunX, sunY, 190);
+    glow.addColorStop(0, stage.sunGlow);
+    glow.addColorStop(1, 'rgba(255,200,90,0)');
+    context.fillStyle = glow;
+    context.fillRect(sunX - 140, sunY - 140, 280, 280);
+    context.fillStyle = stage.sun;
+    context.beginPath();
+    context.arc(sunX, sunY, 36, 0, Math.PI * 2);
+    context.fill();
+    // Clouds drift on the wind.
+    for (const c of state.clouds) {
+      context.fillStyle = 'rgba(255,248,230,0.85)';
+      ellipse(c.x, c.y, 52 * c.s, 17 * c.s, 'rgba(255,248,230,0.85)');
+      ellipse(c.x - 34 * c.s, c.y + 7 * c.s, 34 * c.s, 13 * c.s, 'rgba(255,248,230,0.8)');
+      ellipse(c.x + 36 * c.s, c.y + 8 * c.s, 36 * c.s, 12 * c.s, 'rgba(255,248,230,0.8)');
+    }
+    // Two birds crossing the evening sky.
+    const bx = (state.elapsed * 26) % (FIELD.width + 200) - 100;
+    const by = 62 + Math.sin(state.elapsed * 0.8) * 10;
+    context.strokeStyle = 'rgba(60,30,10,0.75)';
+    context.lineWidth = 3;
+    for (const off of [0, 46]) {
+      const flap = Math.sin(state.elapsed * 6 + off) * 5;
+      context.beginPath();
+      context.moveTo(bx + off - 10, by + flap);
+      context.quadraticCurveTo(bx + off, by - 4, bx + off + 10, by + flap);
+      context.stroke();
+    }
+  }
+
+  function ridge(state, offset, amp, base, color, par) {
+    context.fillStyle = color;
+    context.beginPath();
+    context.moveTo(0, FIELD.groundY);
+    const shift = (stateScroll(state) * par) % 640;
+    for (let x = 0; x <= FIELD.width; x += 16) {
+      const wx = x + shift + offset;
+      const y = base - Math.abs(Math.sin(wx * 0.006)) * amp - Math.sin(wx * 0.013) * amp * 0.35;
+      context.lineTo(x, y);
+    }
+    context.lineTo(FIELD.width, FIELD.groundY);
+    context.closePath();
+    context.fill();
+  }
+  function stateScroll(state) { return state.distance * PX_PER_M; }
+
+  function drawHills(state, stage) {
+    ridge(state, 0, 46, 340, stage.hillFar, 0.12);
+    ridge(state, 300, 30, 360, stage.hillNear, 0.25);
+  }
+
+  // ---- ground and mid scenery ----
+  function drawGround(state, stage) {
+    const g = context.createLinearGradient(0, FIELD.groundY, 0, FIELD.height);
+    g.addColorStop(0, stage.ground);
+    g.addColorStop(1, stage.groundDark);
+    context.fillStyle = g;
+    context.fillRect(0, FIELD.groundY, FIELD.width, FIELD.height - FIELD.groundY);
+    // A dirt track the turkey runs on.
+    context.fillStyle = 'rgba(60,32,8,0.35)';
+    context.fillRect(0, FIELD.groundY + 34, FIELD.width, 44);
+    // Grass tufts and fallen leaves scrolling past.
+    const scroll = stateScroll(state);
+    for (let i = 0; i < 46; i += 1) {
+      const wx = i * 173 + ((i * 97) % 50);
+      const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
+      const gy = FIELD.groundY + 6 + ((i * 53) % 64);
+      context.strokeStyle = stage.grass;
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(sx, gy);
+      context.lineTo(sx - 3, gy - 9);
+      context.moveTo(sx + 3, gy);
+      context.lineTo(sx + 5, gy - 8);
+      context.stroke();
+    }
+    for (const s of state.scenery) {
+      const sx = TURKEY_X + (s.at - state.distance) * PX_PER_M;
+      if (sx < -160 || sx > FIELD.width + 160) continue;
+      const gy = FIELD.groundY;
+      if (s.kind === 0) drawTree(sx, gy, 0.8 + s.lane * 0.5, stage, s.seed);
+      else if (s.kind === 1) drawFenceRun(sx, gy, stage);
+      else if (s.kind === 2) drawPumpkin(sx, gy - 12, 15 + s.lane * 8);
+      else if (s.kind === 3) drawHayBale(sx, gy, 1);
+      else {
+        ellipse(sx, gy - 8, 26, 14, stage.treeDark);
+        ellipse(sx - 12, gy - 14, 16, 10, stage.tree);
+      }
+    }
+    // The riverbank stage gets its water ribbon.
+    if (state.stage === 2) {
+      context.fillStyle = 'rgba(70,140,190,0.85)';
+      context.fillRect(0, FIELD.groundY + 62, FIELD.width, 16);
+      context.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 8; i += 1) {
+        const wx = ((i * 211 - scroll * 0.6) % (FIELD.width + 200) + FIELD.width + 200) % (FIELD.width + 200) - 100;
+        context.fillRect(wx, FIELD.groundY + 66 + (i % 3) * 4, 46, 3);
+      }
+    }
+    // The freedom fence: a white picket line at the finish.
+    if (state.distance > TOTAL_DISTANCE - 130) {
+      const fx = TURKEY_X + (TOTAL_DISTANCE - state.distance) * PX_PER_M;
+      drawFinishGate(fx);
+    }
+  }
+
+  function drawTree(x, gy, s, stage, seed) {
+    const h = 88 * s;
+    context.fillStyle = '#5a3a1a';
+    context.fillRect(x - 4 * s, gy - h * 0.45, 8 * s, h * 0.45);
+    ellipse(x, gy - h * 0.62, 34 * s, 30 * s, stage.tree);
+    ellipse(x - 22 * s, gy - h * 0.48, 22 * s, 18 * s, stage.treeDark);
+    ellipse(x + 22 * s, gy - h * 0.5, 22 * s, 18 * s, stage.tree);
+    context.fillStyle = stage.leaf;
+    for (let i = 0; i < 5; i += 1) {
+      const a = seed * 40 + i * 1.3;
+      ellipse(x + Math.sin(a) * 26 * s, gy - h * 0.62 + Math.cos(a) * 18 * s, 5 * s, 3.5 * s, stage.leaf);
+    }
+  }
+
+  function drawFenceRun(x, gy, stage) {
+    context.fillStyle = '#7a5230';
+    context.fillRect(x - 30, gy - 34, 60, 5);
+    context.fillRect(x - 30, gy - 20, 60, 5);
+    context.fillRect(x - 26, gy - 40, 6, 40);
+    context.fillRect(x + 20, gy - 40, 6, 40);
+  }
+
+  function drawPumpkin(x, gy, r) {
+    context.fillStyle = '#e86e10';
+    context.beginPath();
+    context.ellipse(x, gy, r, r * 0.82, 0, 0, Math.PI * 2);
+    context.fill();
+    context.strokeStyle = '#c85a08';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(x - r * 0.4, gy - r * 0.75);
+    context.quadraticCurveTo(x - r * 0.5, gy, x - r * 0.4, gy + r * 0.75);
+    context.moveTo(x + r * 0.4, gy - r * 0.75);
+    context.quadraticCurveTo(x + r * 0.5, gy, x + r * 0.4, gy + r * 0.75);
+    context.stroke();
+    context.strokeStyle = '#3e6b1e';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(x, gy - r * 0.8);
+    context.quadraticCurveTo(x + 3, gy - r * 1.2, x + 10, gy - r * 1.15);
+    context.stroke();
+  }
+
+  function drawHayBale(x, gy, s) {
+    context.fillStyle = '#d9a83e';
+    context.beginPath();
+    context.arc(x, gy - 20 * s, 20 * s, Math.PI, 0);
+    context.closePath();
+    context.fill();
+    context.strokeStyle = '#b8892a';
+    context.lineWidth = 2;
+    for (let i = -2; i <= 2; i += 1) {
+      context.beginPath();
+      context.moveTo(x + i * 9 * s, gy - 38 * s);
+      context.lineTo(x + i * 11 * s, gy - 4 * s);
+      context.stroke();
+    }
+  }
+
+  function drawFinishGate(fx) {
+    context.fillStyle = 'rgba(255,210,62,0.25)';
+    context.fillRect(fx - 8, FIELD.groundY - 180, 16, 180);
+    for (let i = 0; i < 7; i += 1) {
+      const px = fx - 60 + i * 20;
+      context.fillStyle = '#fff6e0';
+      context.fillRect(px, FIELD.groundY - 100, 14, 100);
+      context.beginPath();
+      context.moveTo(px, FIELD.groundY - 100);
+      context.lineTo(px + 7, FIELD.groundY - 110);
+      context.lineTo(px + 14, FIELD.groundY - 100);
+      context.closePath();
+      context.fill();
+    }
+    context.fillStyle = '#fff6e0';
+    context.fillRect(fx - 70, FIELD.groundY - 80, 140, 8);
+    text('FREEDOM', fx, FIELD.groundY - 118, 26, '#ffd23e', 'center', '900');
+  }
+
+  // ---- hazards and pickups ----
+  function drawOven(sx, wPx) {
+    const gy = FIELD.groundY;
+    // Heat glow on the ground around it.
+    const glow = context.createRadialGradient(sx + wPx / 2, gy - 30, 6, sx + wPx / 2, gy - 30, 130);
+    glow.addColorStop(0, 'rgba(255,122,30,0.5)');
+    glow.addColorStop(1, 'rgba(255,122,30,0)');
+    context.fillStyle = glow;
+    context.fillRect(sx - 90, gy - 120, wPx + 180, 130);
+    // Body, chimney and glowing door.
+    context.fillStyle = PALETTE.ovenBody;
+    pill(sx, gy - 56, wPx, 56, 8, PALETTE.ovenBody);
+    context.fillStyle = '#2a2a33';
+    context.fillRect(sx + wPx - 26, gy - 82, 18, 28);
+    const door = context.createLinearGradient(0, gy - 52, 0, gy - 8);
+    door.addColorStop(0, '#ffd23e');
+    door.addColorStop(0.5, '#ff7a1e');
+    door.addColorStop(1, '#c22e00');
+    context.fillStyle = door;
+    pill(sx + wPx / 2 - 22, gy - 40, 44, 34, 6, door);
+    context.strokeStyle = '#1c1c22';
+    context.lineWidth = 3;
+    context.beginPath();
+    context.moveTo(sx + wPx / 2 - 22, gy - 22);
+    context.lineTo(sx + wPx / 2 + 22, gy - 22);
+    context.stroke();
+    // Danger chevrons above the oven.
+    context.fillStyle = '#ffd23e';
+    for (let i = 0; i < 3; i += 1) {
+      const cx = sx + 14 + i * 26;
+      context.beginPath();
+      context.moveTo(cx, gy - 68);
+      context.lineTo(cx + 10, gy - 60);
+      context.lineTo(cx, gy - 52);
+      context.lineTo(cx - 6, gy - 60);
+      context.closePath();
+      context.fill();
+    }
+    text('OVEN!', sx + wPx / 2, gy - 88, 20, '#ffb03a', 'center', '900');
+  }
+
+  function drawFenceObstacle(sx, wPx, h) {
+    const gy = FIELD.groundY;
+    context.fillStyle = '#8a5a30';
+    context.fillRect(sx, gy - h, wPx, 6);
+    context.fillRect(sx, gy - h + 18, wPx, 6);
+    context.fillRect(sx + 4, gy - h - 4, 7, h + 4);
+    context.fillRect(sx + wPx - 11, gy - h - 4, 7, h + 4);
+  }
+
+  function drawCorn(sx, y, t) {
+    const bob = Math.sin(t * 3 + sx * 0.05) * 3;
+    const cy = FIELD.groundY - y + bob;
+    context.fillStyle = PALETTE.cornHusk;
+    context.beginPath();
+    context.moveTo(sx - 4, cy + 12);
+    context.lineTo(sx - 12, cy + 22);
+    context.lineTo(sx + 2, cy + 16);
+    context.closePath();
+    context.fill();
+    ellipse(sx + 8, cy, 11, 15, PALETTE.corn);
+    context.strokeStyle = '#d9a41e';
+    context.lineWidth = 1.5;
+    for (let i = -1; i <= 1; i += 1) {
+      context.beginPath();
+      context.moveTo(sx + 8 + i * 5, cy - 11);
+      context.lineTo(sx + 8 + i * 5, cy + 11);
+      context.stroke();
+    }
+    const glint = context.createRadialGradient(sx + 4, cy - 6, 1, sx + 4, cy - 6, 12);
+    glint.addColorStop(0, 'rgba(255,255,255,0.7)');
+    glint.addColorStop(1, 'rgba(255,255,255,0)');
+    context.fillStyle = glint;
+    context.fillRect(sx - 8, cy - 18, 24, 24);
+  }
+
+  function drawGoldenPumpkin(sx, y, t) {
+    const bob = Math.sin(t * 2.4) * 4;
+    const glow = context.createRadialGradient(sx, FIELD.groundY - y + bob, 4, sx, FIELD.groundY - y + bob, 46);
+    glow.addColorStop(0, 'rgba(255,210,62,0.65)');
+    glow.addColorStop(1, 'rgba(255,210,62,0)');
+    context.fillStyle = glow;
+    context.fillRect(sx - 50, FIELD.groundY - y - 50 + bob, 100, 100);
+    drawPumpkin(sx, FIELD.groundY - y + bob, 20);
+    context.fillStyle = '#fff6e0';
+    context.beginPath();
+    context.moveTo(sx, FIELD.groundY - y - 26 + bob);
+    context.lineTo(sx + 5, FIELD.groundY - y - 16 + bob);
+    context.lineTo(sx - 5, FIELD.groundY - y - 16 + bob);
+    context.closePath();
+    context.fill();
+  }
+
+  function drawFeatherPickup(sx, y, t) {
+    const bob = Math.sin(t * 2.8 + 1) * 4;
+    const cy = FIELD.groundY - y + bob;
+    context.save();
+    context.translate(sx, cy);
+    context.rotate(Math.sin(t * 1.6) * 0.3);
+    context.fillStyle = '#fff6e0';
+    context.beginPath();
+    context.ellipse(0, 0, 9, 18, 0, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#c96a1e';
+    context.beginPath();
+    context.ellipse(0, -6, 5, 10, 0, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+    const glow = context.createRadialGradient(sx, cy, 2, sx, cy, 30);
+    glow.addColorStop(0, 'rgba(255,255,255,0.5)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    context.fillStyle = glow;
+    context.fillRect(sx - 30, cy - 30, 60, 60);
+  }
+
+  function drawKnife(sx, y, t) {
+    const cy = FIELD.groundY - y;
+    const spin = t * 9;
+    context.save();
+    context.translate(sx, cy);
+    context.rotate(spin);
+    context.fillStyle = PALETTE.knifeBlade;
+    context.beginPath();
+    context.moveTo(-18, -5);
+    context.lineTo(14, -5);
+    context.lineTo(24, 0);
+    context.lineTo(14, 5);
+    context.lineTo(-18, 5);
+    context.closePath();
+    context.fill();
+    context.fillStyle = PALETTE.knifeHandle;
+    context.fillRect(-30, -5, 13, 10);
+    context.restore();
+    // A white glint trail behind the blade.
+    context.strokeStyle = 'rgba(255,255,255,0.7)';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(sx + 34, cy);
+    context.lineTo(sx + 70, cy - 6);
+    context.stroke();
+  }
+
+  // ---- the turkey ----
+  function drawTurkey(state) {
+    const p = state.player;
+    const gy = FIELD.groundY;
+    const air = p.y > 0;
+    const squashY = p.squash > 0 ? 1 - p.squash * 0.18 : 1;
+    const squashX = p.squash > 0 ? 1 + p.squash * 0.18 : 1;
+    const cx = TURKEY_X + TURKEY.width / 2;
+    const feetY = gy - p.y;
+    const ducking = p.ducking || p.hiding > 0;
+    const bodyH = ducking ? 46 : 74;
+    const bodyW = ducking ? 74 : 62;
+    const blink = p.invulnerable > 0 && Math.floor(p.invulnerable * 10) % 2 === 0;
+    if (blink || p.hiding > 0) return; // hidden behind the haystack, or blinking off
+    context.save();
+    context.translate(cx, feetY);
+    context.scale(squashX, squashY);
+    if (p.pumpkin > 0) {
+      const glow = context.createRadialGradient(0, -44, 6, 0, -44, 110);
+      glow.addColorStop(0, 'rgba(255,210,62,0.55)');
+      glow.addColorStop(1, 'rgba(255,210,62,0)');
+      context.fillStyle = glow;
+      context.fillRect(-110, -160, 220, 220);
+    }
+    // Fanned tail feathers — the silhouette that says "turkey".
+    const tailSpread = ducking ? 0.5 : 1;
+    for (let i = -2; i <= 2; i += 1) {
+      const ang = i * 0.42 * tailSpread;
+      const len = 48 - Math.abs(i) * 5;
+      const col = PALETTE.tail[i + 2];
+      context.save();
+      context.translate(-6, -bodyH + 26);
+      context.rotate(ang - 0.5);
+      context.fillStyle = col;
+      context.beginPath();
+      context.ellipse(0, -len / 2, 15, len / 2, 0, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = 'rgba(60,25,5,0.55)';
+      context.beginPath();
+      context.ellipse(0, -len + 12, 6, 8, 0, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    }
+    // Legs — a two-beat run cycle, tucked up in the air.
+    const legSwing = air ? 0.5 : Math.sin(p.runPhase * 2) * 0.9;
+    context.strokeStyle = '#e8a33c';
+    context.lineWidth = 5;
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(-4, -14);
+    context.lineTo(-4 + Math.sin(p.runPhase * 2) * 10, 0);
+    context.moveTo(10, -14);
+    context.lineTo(10 - Math.sin(p.runPhase * 2) * 10, 0);
+    context.stroke();
+    // Plump body with scalloped feather rows.
+    context.fillStyle = PALETTE.turkeyBody;
+    context.beginPath();
+    context.ellipse(6, -bodyH / 2 - 6, bodyW / 2, bodyH / 2, 0, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = PALETTE.turkeyLight;
+    for (let r = 0; r < 3; r += 1) {
+      for (let i = 0; i < 3; i += 1) {
+        context.beginPath();
+        context.arc(-8 + i * 16, -bodyH + 22 + r * 16, 8, 0, Math.PI);
+        context.fill();
+      }
+    }
+    // Wing — tucked while running, thrown wide on a jump.
+    const wingFlap = air ? -0.9 + Math.sin(state.elapsed * 14) * 0.35 : Math.sin(p.runPhase * 2) * 0.12;
+    context.save();
+    context.translate(2, -bodyH / 2 - 8);
+    context.rotate(wingFlap);
+    context.fillStyle = PALETTE.turkeyDark;
+    context.beginPath();
+    context.ellipse(-4, 0, 20, 12, 0, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+    // Neck, head, beak, wattle and a bright eye.
+    const headX = 26;
+    const headY = -bodyH - 14 + (ducking ? 10 : 0);
+    context.fillStyle = PALETTE.turkeyBody;
+    context.fillRect(headX - 6, headY + 6, 12, 18);
+    context.fillStyle = '#d9c8a8';
+    context.beginPath();
+    context.arc(headX, headY, 12, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = PALETTE.wattle;
+    context.beginPath();
+    context.ellipse(headX + 4, headY + 10, 4, 8, 0.2, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#f2a93c';
+    context.beginPath();
+    context.moveTo(headX + 10, headY - 2);
+    context.lineTo(headX + 24, headY + 2);
+    context.lineTo(headX + 10, headY + 6);
+    context.closePath();
+    context.fill();
+    context.fillStyle = '#1c1410';
+    context.beginPath();
+    context.arc(headX + 4, headY - 4, 2.6, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#fff';
+    context.beginPath();
+    context.arc(headX + 5, headY - 5, 1, 0, Math.PI * 2);
+    context.fill();
+    // A red snood over the beak, and a feather shield ring when armed.
+    context.fillStyle = PALETTE.wattle;
+    context.beginPath();
+    context.ellipse(headX + 8, headY - 10, 3, 6, 0.4, 0, Math.PI * 2);
+    context.fill();
+    if (p.shield) {
+      context.strokeStyle = 'rgba(255,255,255,0.85)';
+      context.lineWidth = 3;
+      context.beginPath();
+      context.arc(4, -bodyH / 2 - 4, 52, 0, Math.PI * 2);
+      context.stroke();
+    }
+    context.restore();
+    void legSwing;
+  }
+
+  // ---- the farmer ----
+  function drawFarmer(state) {
+    const f = state.farmer;
+    const gap = f.gap;
+    // The pursuer is always on screen, clamped to the left edge: the
+    // chase must read at a glance in every frame. The metres above him
+    // and the progress bar give the true distance.
+    const fx = Math.max(TURKEY_X - gap * PX_PER_M, 16);
+    const gy = FIELD.groundY;
+    const bob = Math.abs(Math.sin(f.anim)) * 6;
+    const windup = f.windup > 0;
+    if (gap > 22) text(`${Math.round(gap)}m`, fx + 4, gy - 196, 17, '#ffd9d0', 'center', '800');
+    context.save();
+    context.translate(fx, gy - bob);
+    // Boots and legs mid-stride.
+    const stride = Math.sin(f.anim) * 12;
+    context.strokeStyle = '#3a2a18';
+    context.lineWidth = 7;
+    context.lineCap = 'round';
+    context.beginPath();
+    context.moveTo(-6, -36);
+    context.lineTo(-6 + stride, 0);
+    context.moveTo(8, -36);
+    context.lineTo(8 - stride, 0);
+    context.stroke();
+    // Blue overalls over a red plaid shirt.
+    context.fillStyle = PALETTE.farmerOveralls;
+    context.fillRect(-12, -74, 30, 42);
+    context.fillStyle = PALETTE.farmerShirt;
+    context.fillRect(-14, -92, 34, 22);
+    context.strokeStyle = 'rgba(255,255,255,0.35)';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(-16, -84);
+    context.lineTo(22, -84);
+    context.moveTo(-16, -76);
+    context.lineTo(22, -76);
+    context.stroke();
+    // Arms — one pumping, one raised with a knife when he winds up.
+    context.strokeStyle = PALETTE.farmerShirtDark;
+    context.lineWidth = 8;
+    context.beginPath();
+    context.moveTo(-12, -88);
+    context.lineTo(-22, -68 + Math.sin(f.anim) * 6);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(18, -88);
+    if (windup) context.lineTo(38, -118);
+    else context.lineTo(30, -70 - Math.sin(f.anim) * 6);
+    context.stroke();
+    if (windup) drawKnife(44, 118, state.elapsed);
+    // Head: beard, nose, and a straw hat.
+    context.fillStyle = PALETTE.farmerSkin;
+    context.beginPath();
+    context.arc(4, -104, 12, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#8a8a8a';
+    context.beginPath();
+    context.arc(4, -96, 9, 0, Math.PI);
+    context.fill();
+    context.fillStyle = PALETTE.farmerSkin;
+    context.beginPath();
+    context.arc(17, -104, 3, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#1c1410';
+    context.beginPath();
+    context.arc(9, -107, 2, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = PALETTE.farmerHat;
+    context.beginPath();
+    context.ellipse(4, -114, 20, 5, 0, 0, Math.PI * 2);
+    context.fill();
+    context.fillRect(-7, -128, 20, 14);
+    context.fillStyle = '#c0392b';
+    context.fillRect(-7, -117, 20, 3);
+    // "!" when he is close enough to smell dinner.
+    if (gap < 12) {
+      const pulse = 0.7 + Math.sin(state.elapsed * 8) * 0.3;
+      text('!', 4, -152, 28, `rgba(255,70,50,${pulse})`, 'center', '900');
+    }
+    context.restore();
+  }
+
+  // ---- particles, leaves, vignette ----
+  function drawParticles(state) {
+    for (const p of state.particles) {
+      if (!p.active) continue;
+      const a = clamp(p.life / p.max, 0, 1);
+      if (p.kind === 0) { // dust
+        context.fillStyle = `rgba(214,178,120,${a * 0.7})`;
+        context.beginPath();
+        context.arc(p.x, p.y, p.size * (1.6 - a * 0.6), 0, Math.PI * 2);
+        context.fill();
+      } else if (p.kind === 1) { // feathers
+        context.save();
+        context.translate(p.x, p.y);
+        context.rotate(p.life * 6);
+        context.fillStyle = `rgba(150,90,40,${a})`;
+        context.beginPath();
+        context.ellipse(0, 0, p.size, p.size * 0.55, 0, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+      } else if (p.kind === 2) { // embers
+        context.fillStyle = `rgba(255,${120 + Math.floor(a * 100)},30,${a})`;
+        context.beginPath();
+        context.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        context.fill();
+      } else { // golden sparkles
+        context.fillStyle = `rgba(255,210,62,${a})`;
+        context.beginPath();
+        context.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+    for (const l of state.leaves) {
+      context.save();
+      context.translate(l.x, l.y);
+      context.rotate(Math.sin(state.elapsed + l.ph) * 0.8);
+      context.fillStyle = 'rgba(232,161,58,0.85)';
+      context.beginPath();
+      context.ellipse(0, 0, l.s, l.s * 0.55, 0, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    }
+  }
+
+  function drawDangerVignette(state) {
+    const gap = state.farmer.gap;
+    if (gap > 12) return;
+    const a = (1 - gap / 12) * (0.35 + Math.sin(state.elapsed * 7) * 0.12);
+    const g = context.createRadialGradient(640, 240, 170, 640, 240, 480);
+    g.addColorStop(0, 'rgba(200,20,10,0)');
+    g.addColorStop(1, `rgba(200,20,10,${a})`);
+    context.fillStyle = g;
+    context.fillRect(0, 0, FIELD.width, FIELD.height);
+  }
+
+  // ---- HUD ----
+  function drawHud(state, best) {
+    const stage = STAGES[state.stage];
+    pill(14, 12, 1260, 66, 14, 'rgba(20,10,2,0.72)', 'rgba(242,193,78,0.55)');
+    // Score, big and left.
+    text('SCORE', 34, 34, 15, PALETTE.muted, 'left', '800');
+    text(String(Math.floor(state.score)), 34, 66, 34, PALETTE.text, 'left', '900');
+    // Distance progress bar in the middle, with stage ticks.
+    const barX = 300, barW = 620, barY = 26;
+    text('ESCAPE', barX, 34, 15, PALETTE.muted, 'left', '800');
+    pill(barX, barY + 12, barW, 16, 8, 'rgba(255,255,255,0.16)');
+    const prog = clamp(state.distance / TOTAL_DISTANCE, 0, 1);
+    const pg = context.createLinearGradient(barX, 0, barX + barW, 0);
+    pg.addColorStop(0, '#ffd23e');
+    pg.addColorStop(1, '#ff7a1e');
+    pill(barX, barY + 12, Math.max(16, barW * prog), 16, 8, pg);
+    for (let i = 1; i < 4; i += 1) {
+      const tx = barX + (barW * i) / 4;
+      context.fillStyle = 'rgba(255,246,224,0.9)';
+      context.fillRect(tx - 1, barY + 10, 2, 20);
+    }
+    // Turkey and farmer markers ride inside the bar.
+    const tx = barX + barW * prog;
+    text('🦃', tx, barY + 25, 16, '#fff', 'center');
+    const fx = barX + barW * clamp((state.distance - state.farmer.gap) / TOTAL_DISTANCE, 0, 1);
+    text('🧑‍🌾', fx, barY + 25, 16, '#fff', 'center');
+    text(`${Math.floor(state.distance)}m / ${TOTAL_DISTANCE}m`, barX + barW / 2, 66, 17, PALETTE.text, 'center', '700');
+    // Hearts on the right.
+    text('LIVES', 1150, 34, 15, PALETTE.muted, 'left', '800');
+    for (let i = 0; i < LIVES; i += 1) {
+      const hx = 1152 + i * 34;
+      const alive = i < state.lives;
+      context.fillStyle = alive ? '#ff5a3c' : 'rgba(255,255,255,0.18)';
+      context.beginPath();
+      context.arc(hx + 8, 52, 8, 0, Math.PI * 2);
+      context.arc(hx + 20, 52, 8, 0, Math.PI * 2);
+      context.fill();
+      context.beginPath();
+      context.moveTo(hx, 56);
+      context.lineTo(hx + 28, 56);
+      context.lineTo(hx + 14, 70);
+      context.closePath();
+      context.fill();
+    }
+    // Combo pill under the score.
+    if (state.combo >= 2) {
+      pill(30, 86, 150, 34, 10, 'rgba(255,122,30,0.9)');
+      text(`COMBO x${state.combo}`, 105, 110, 20, '#fff6e0', 'center', '900');
+    }
+    // Stamina bar, bottom left, with a dash hint.
+    pill(24, 428, 220, 14, 7, 'rgba(20,10,2,0.6)');
+    const sg = context.createLinearGradient(24, 0, 244, 0);
+    sg.addColorStop(0, '#7dd3fc');
+    sg.addColorStop(1, '#38bdf8');
+    pill(24, 428, Math.max(10, 220 * state.player.stamina / TURKEY.staminaMax), 14, 7, sg);
+    text('DASH — SHIFT', 254, 440, 14, 'rgba(255,246,224,0.85)', 'left', '700');
+    if (state.player.shield) text('🛡 SHIELD', 24, 412, 16, '#fff', 'left', '800');
+    if (state.player.pumpkin > 0) text(`★ GOLDEN ${Math.ceil(state.player.pumpkin)}s`, 24, 392, 18, '#ffd23e', 'left', '900');
+    // Stage name, small, bottom right.
+    text(`${stage.name}  •  BEST ${Math.max(best, Math.floor(state.score))}`, 1256, 440, 14, 'rgba(255,246,224,0.8)', 'right', '700');
+    // Flash message, centre.
+    if (state.flashTimer > 0 && state.flash) {
+      const a = clamp(state.flashTimer, 0, 1);
+      pill(390, 92, 500, 44, 12, `rgba(20,10,2,${0.75 * a})`, `rgba(242,193,78,${a})`);
+      text(state.flash, 640, 122, 22, `rgba(255,246,224,${a})`, 'center', '900');
+    }
+    // Stage banner, big and fading.
+    if (state.bannerTimer > 0 && state.banner) {
+      const a = clamp(state.bannerTimer / 1.2, 0, 1);
+      text(state.banner, 640, 168, 56, `rgba(255,246,224,${a})`, 'center', '900');
+      text(STAGES[state.stage].sub, 640, 200, 20, `rgba(255,210,62,${a})`, 'center', '700');
+    }
+  }
+
+  // ---- panels ----
+  function drawTitle(state, best) {
+    // A dark gradient at the top and bottom so the text reads over the scene.
+    const g = context.createLinearGradient(0, 0, 0, FIELD.height);
+    g.addColorStop(0, 'rgba(20,8,2,0.55)');
+    g.addColorStop(0.35, 'rgba(20,8,2,0)');
+    g.addColorStop(0.75, 'rgba(20,8,2,0.15)');
+    g.addColorStop(1, 'rgba(20,8,2,0.7)');
+    context.fillStyle = g;
+    context.fillRect(0, 0, FIELD.width, FIELD.height);
+    text('THANKSGIVING IS COMING…', 640, 72, 22, '#ffd23e', 'center', '900');
+    context.save();
+    context.shadowColor = 'rgba(255,122,30,0.8)';
+    context.shadowBlur = 34;
+    text('TURKEY RUN!', 640, 140, 88, '#fff6e0', 'center', '900');
+    context.restore();
+    text('Escape the farm. Dodge the oven. Outrun the farmer.', 640, 176, 24, '#ffe9b0', 'center', '700');
+    pill(250, 196, 780, 100, 16, PALETTE.panel, PALETTE.panelEdge);
+    text('↑ / SPACE — jump fences & ovens', 640, 226, 20, PALETTE.text, 'center', '700');
+    text('SHIFT — dash   •   ↓ near hay — hide   •   ↓ — duck high knives', 640, 254, 20, PALETTE.text, 'center', '700');
+    text('Corn = combo  •  Golden pumpkin = untouchable  •  Feather = shield', 640, 280, 19, PALETTE.muted, 'center', '700');
+    if (best > 0) text(`BEST ESCAPE  ${best}`, 640, 322, 20, '#ffd23e', 'center', '900');
+    const blink = Math.floor(state.elapsed * 2) % 2 === 0;
+    if (blink) text('▶  PRESS SPACE OR CLICK TO RUN', 640, 362, 26, '#fff6e0', 'center', '900');
+    text('A 1,500 m dash through the farmyard, the woods, the riverbank — to the freedom fence.', 640, 452, 16, 'rgba(255,246,224,0.75)', 'center', '700');
+  }
+
+  function drawPaused() {
+    context.fillStyle = 'rgba(20,8,2,0.6)';
+    context.fillRect(0, 0, FIELD.width, FIELD.height);
+    pill(390, 150, 500, 170, 18, PALETTE.panel, PALETTE.panelEdge);
+    text('PAUSED', 640, 212, 48, PALETTE.text, 'center', '900');
+    text('The farmer waits. The oven stays hot.', 640, 248, 20, PALETTE.muted, 'center', '700');
+    text('P — resume    M — mute    R — restart', 640, 286, 20, PALETTE.corn, 'center', '700');
+  }
+
+  function drawOver(state, best, escaped) {
+    const score = Math.floor(state.score);
+    context.fillStyle = escaped ? 'rgba(60,40,0,0.45)' : 'rgba(20,4,2,0.62)';
+    context.fillRect(0, 0, FIELD.width, FIELD.height);
+    if (escaped) {
+      // Golden fireworks of feathers over the freedom fence.
+      for (let i = 0; i < 24; i += 1) {
+        const a = (i / 24) * Math.PI * 2 + state.elapsed * 0.2;
+        const r = 90 + ((i * 53) % 120);
+        const fx = 640 + Math.cos(a) * r * 1.6;
+        const fy = 140 + Math.sin(a) * r * 0.5;
+        context.fillStyle = i % 3 === 0 ? '#ffd23e' : i % 3 === 1 ? '#ff7a1e' : '#fff6e0';
+        context.beginPath();
+        context.arc(fx, fy, 4 + (i % 3), 0, Math.PI * 2);
+        context.fill();
+      }
+      text('ESCAPED!', 640, 132, 80, '#ffd23e', 'center', '900');
+      text('The turkey made it past the freedom fence —', 640, 168, 22, PALETTE.text, 'center', '700');
+      text('no Thanksgiving dinner tonight.', 640, 192, 22, PALETTE.text, 'center', '700');
+    } else {
+      text('CAUGHT FOR DINNER', 640, 132, 76, '#ff5a3c', 'center', '900');
+      text('The farmer finally got his hands on you…', 640, 168, 22, PALETTE.text, 'center', '700');
+      text('the oven was already warm.', 640, 192, 22, PALETTE.text, 'center', '700');
+    }
+    pill(390, 210, 500, 170, 18, PALETTE.panel, PALETTE.panelEdge);
+    text(`SCORE  ${score}`, 640, 258, 32, PALETTE.text, 'center', '900');
+    text(`BEST  ${Math.max(best, score)}`, 640, 290, 20, '#ffd23e', 'center', '800');
+    text(`Distance ${Math.floor(state.distance)}m  •  Corn ${state.corn}  •  Combo x${state.bestCombo}  •  Knives ${state.knivesDodged}`, 640, 322, 17, PALETTE.muted, 'center', '700');
+    if (escaped) text('RANK: FREE BIRD', 640, 350, 18, '#ffd23e', 'center', '900');
+    else if (score >= 1200) text('RANK: SO CLOSE — ALMOST A FREE BIRD', 640, 350, 18, '#ffd23e', 'center', '900');
+    else text('RANK: SUNDAY ROAST', 640, 350, 18, '#ffd23e', 'center', '900');
+    const blink = Math.floor(state.elapsed * 2) % 2 === 0;
+    if (blink) text('▶  PRESS SPACE OR CLICK TO RUN AGAIN  (R)', 640, 398, 22, '#fff6e0', 'center', '900');
+  }
+
+  // ---- one frame ----
+  function drawField(state) {
+    const stage = STAGES[state.stage];
+    drawSky(state, stage);
+    drawHills(state, stage);
+    drawGround(state, stage);
+    const t = state.elapsed;
+    // Pickups and hazards, in world order.
+    for (const e of state.entities) {
+      if (!e.active || e.taken) continue;
+      const sx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
+      if (sx < -260 || sx > FIELD.width + 260) continue;
+      if (e.kind === KIND_OVEN) drawOven(sx, e.w * PX_PER_M);
+      else if (e.kind === KIND_FENCE) drawFenceObstacle(sx, e.w * PX_PER_M, e.h);
+      else if (e.kind === KIND_BALE) drawHayBale(sx, FIELD.groundY, e.w / 3.4);
+      else if (e.kind === KIND_CORN) drawCorn(sx, e.y, t);
+      else if (e.kind === KIND_PUMPKIN) drawGoldenPumpkin(sx, e.y, t);
+      else if (e.kind === KIND_FEATHER) drawFeatherPickup(sx, e.y, t);
+      else if (e.kind === KIND_KNIFE) drawKnife(sx, e.y, t);
+    }
+    drawTurkey(state);
+    drawFarmer(state);
+    // Haystacks stand in front, so a hiding turkey really disappears.
+    for (const e of state.entities) {
+      if (!e.active || e.kind !== KIND_HAYSTACK) continue;
+      const sx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
+      if (sx < -260 || sx > FIELD.width + 260) continue;
+      drawHayBale(sx, FIELD.groundY, 1.9);
+      text('HIDE ↓', sx, FIELD.groundY - 88, 18, '#fff6e0', 'center', '900');
+    }
+    drawParticles(state);
+    drawDangerVignette(state);
+  }
+
+  function draw(state, screen, best) {
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.fillStyle = PALETTE.backdrop;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
+    drawField(state);
+    if (screen === SCREEN_TITLE) drawTitle(state, best);
+    else if (screen === SCREEN_PAUSED) { drawHud(state, best); drawPaused(); }
+    else if (screen === SCREEN_OVER) { drawHud(state, best); drawOver(state, best, state.escaped); }
+    else drawHud(state, best);
+  }
+
+  resize();
+  window.addEventListener('resize', resize);
+  return { draw };
+}
