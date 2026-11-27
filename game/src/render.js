@@ -711,11 +711,14 @@ export function createRenderer(canvas) {
   // with wings thrown wide, a low slide, and a dazed hurt wobble. The
   // tail fan, wing angle, legs and eye all change with the pose, so the
   // bird looks alive instead of like one frozen cut-out.
-  // scale is 1.12 in play and 1.09 on the title, so the bird reads
+  // scale is 1.12 in play and 1.20 on the title, so the bird reads
   // bigger on the contact sheet. The title scale is capped by the
   // instruction panel above it: the whole title text block moved up
-  // 8 px (panel bottom y=280) to make room, and at 1.09 the head
-  // still clears it by ~8 px, measured off the screenshot. The scale
+  // 8 px (panel bottom y=280) in round 15, and in round 16 the panel
+  // was tightened as well (lines 210/238/264 -> 206/232/256, height
+  // 100 -> 88, bottom y=268) to make room — at 1.20 the head still
+  // clears it by ~10 px, measured off the screenshot (head top
+  // y=289 at 1.09, so ~278 at 1.20, panel bottom 268). The scale
   // pivots on the feet, so the bird grows up and out while its feet
   // stay on the ground line.
   function drawTurkey(state, scale, celebrate) {
@@ -1399,7 +1402,16 @@ export function createRenderer(canvas) {
   // ---- HUD ----
   function drawHud(state, best) {
     const stage = STAGES[state.stage];
-    pill(14, 12, 1260, 66, 14, 'rgba(20,10,2,0.72)', 'rgba(242,193,78,0.55)');
+    // The bar is OPAQUE now, not 0.72 alpha: a translucent bar let the
+    // sky show through as smudges — clouds behind it read as grey
+    // patches on the bar, and on the end frame the fireworks glow
+    // behind it pushed one stretch of the bar to R=133 against R=76
+    // elsewhere (std 22.9 in the plain bar zone, measured off the
+    // screenshot). At contact-sheet size that reads as a dirty bar.
+    // Opaque, the bar is one flat dark band in all four frames, and
+    // the birds that used to show faintly through it simply pass
+    // behind it, as they should.
+    pill(14, 12, 1260, 66, 14, '#150b02', 'rgba(242,193,78,0.55)');
     // Score, big and left.
     text('SCORE', 34, 34, 15, PALETTE.muted, 'left', '800');
     text(String(Math.floor(state.score)), 34, 66, 34, PALETTE.text, 'left', '900');
@@ -1498,10 +1510,10 @@ export function createRenderer(canvas) {
     context.fillRect(0, 0, FIELD.width, FIELD.height);
     // The whole title text block sits 8 px higher than before (kicker
     // 72→64, title 140→132, subtitle pill 149→141, panel 188→180):
-    // the title turkey grows to 1.06 this round (see drawField), and
-    // its head needs the panel's bottom edge out of the way — the
-    // block moves as one, so every gap inside it stays exactly as
-    // measured before. The panel bottom is now y=280.
+    // the title turkey grows to 1.20 (see drawField), and its head
+    // needs the panel's bottom edge out of the way — the block moves
+    // as one, so every gap inside it stays exactly as measured
+    // before. The panel bottom is now y=268 (tightened in round 16).
     text('THANKSGIVING IS COMING…', 640, 64, 22, '#ffd23e', 'center', '900');
     context.save();
     context.shadowColor = 'rgba(255,122,30,0.8)';
@@ -1518,16 +1530,18 @@ export function createRenderer(canvas) {
     // (bottom y=175, panel top y=180).
     pill(300, 141, 680, 34, 12, 'rgba(20,8,2,0.55)');
     text('Escape the farm. Dodge the oven. Outrun the farmer.', 640, 168, 24, '#ffe9b0', 'center', '700');
-    // The instruction panel sits 8 px higher than before (top y=180,
-    // bottom y=280): the turkey's head used to clear its bottom edge
-    // by only ~10 px — the tightest spot on the title frame, measured
-    // off the screenshot, not guessed. Now the head has room to grow
-    // to 1.06 (see drawField), and the panel still clears the subtitle
+    // The instruction panel sits 8 px higher than before (top y=180),
+    // and its lines are tightened (210/238/264 -> 206/232/256, height
+    // 100 -> 88, bottom y=268) so the title turkey can grow to 1.20:
+    // the turkey's head used to clear its bottom edge by only ~10 px
+    // at 1.09 — the tightest spot on the title frame, measured off
+    // the screenshot, not guessed. The 26 px line spacing still
+    // clears the 20 px text, and the panel still clears the subtitle
     // above it (whose descenders end ~y=173) by 7 px.
-    pill(250, 180, 780, 100, 16, PALETTE.panel, PALETTE.panelEdge);
-    text('↑ / SPACE — jump fences & ovens', 640, 210, 20, PALETTE.text, 'center', '700');
-    text('SHIFT — dash   •   ↓ near hay — hide   •   ↓ — duck high knives', 640, 238, 20, PALETTE.text, 'center', '700');
-    text('Corn = combo  •  Golden pumpkin = untouchable  •  Feather = shield', 640, 264, 19, PALETTE.muted, 'center', '700');
+    pill(250, 180, 780, 88, 16, PALETTE.panel, PALETTE.panelEdge);
+    text('↑ / SPACE — jump fences & ovens', 640, 206, 20, PALETTE.text, 'center', '700');
+    text('SHIFT — dash   •   ↓ near hay — hide   •   ↓ — duck high knives', 640, 232, 20, PALETTE.text, 'center', '700');
+    text('Corn = combo  •  Golden pumpkin = untouchable  •  Feather = shield', 640, 256, 19, PALETTE.muted, 'center', '700');
     if (best > 0) text(`BEST ESCAPE  ${best}`, 640, 314, 20, '#ffd23e', 'center', '900');
     const blink = Math.floor(state.elapsed * 2) % 2 === 0;
     if (blink) text('▶  PRESS SPACE OR CLICK TO RUN', 640, 354, 26, '#fff6e0', 'center', '900');
@@ -1648,13 +1662,13 @@ export function createRenderer(canvas) {
       ellipse(150, 420, 3, 3, '#e86a1e');
       ellipse(196, 418, 3, 3, '#f2c14e');
       ellipse(226, 421, 6, 3.5, '#e8a13a');
-      text('ESCAPED!', 640, 132, 80, '#ffd23e', 'center', '900');
-      text('The turkey made it past the freedom fence —', 640, 168, 22, PALETTE.text, 'center', '700');
-      text('no Thanksgiving dinner tonight.', 640, 192, 22, PALETTE.text, 'center', '700');
+      text('ESCAPED!', 640, 136, 80, '#ffd23e', 'center', '900');
+      text('The turkey made it past the freedom fence —', 640, 172, 22, PALETTE.text, 'center', '700');
+      text('no Thanksgiving dinner tonight.', 640, 196, 22, PALETTE.text, 'center', '700');
     } else {
-      text('CAUGHT FOR DINNER', 640, 132, 76, '#ff5a3c', 'center', '900');
-      text('The farmer finally got his hands on you…', 640, 168, 22, PALETTE.text, 'center', '700');
-      text('the oven was already warm.', 640, 192, 22, PALETTE.text, 'center', '700');
+      text('CAUGHT FOR DINNER', 640, 136, 76, '#ff5a3c', 'center', '900');
+      text('The farmer finally got his hands on you…', 640, 172, 22, PALETTE.text, 'center', '700');
+      text('the oven was already warm.', 640, 196, 22, PALETTE.text, 'center', '700');
     }
     // The score panel sits to the RIGHT of centre, so the turkey at the
     // freedom fence (screen x ~330) is fully visible in the empty space
@@ -1681,21 +1695,22 @@ export function createRenderer(canvas) {
   // ---- one frame ----
   function drawField(state, screen) {
     const stage = STAGES[state.stage];
-    // The turkey is drawn 12% bigger everywhere, and 9% bigger on the
-    // title too: the whole title text block moved up 8 px this round
-    // (panel bottom now y=280), so the bird's head — which rises ~10 px
-    // at 1.09 — still clears the panel by ~8 px, measured off the
-    // screenshot. At 1.06 the gain was a barely visible ring (round 14
-    // tried it and rolled it back for a 4 px gap); 1.09 with the block
-    // shifted is the biggest the title bird can go without touching
-    // the panel. On the escape screen it is 40% bigger and leaping
+    // The turkey is drawn 12% bigger everywhere, and 20% bigger on the
+    // title: the whole title text block moved up 8 px in round 15
+    // (panel bottom y=280), and in round 16 the panel was tightened
+    // as well (bottom now y=268), so the bird's head — which rises
+    // ~11 px from 1.09 to 1.20 — still clears the panel by ~10 px,
+    // measured off the screenshot. At 1.09 the gain over 1.0 was a
+    // barely visible ring; 1.20 is the biggest the title bird can go
+    // without touching the panel or squeezing the text block further.
+    // On the escape screen it is 40% bigger and leaping
     // with its wings thrown wide: the end frame's hero used to stand
     // behind the white fence pickets, smaller than the farmer at the
     // left edge. Bigger and mid-leap, it stands in front of the fence
     // and owns the frame — and the farmer is drawn a touch smaller
     // there, so he stops outshining the bird he failed to catch.
     const escaped = screen === SCREEN_OVER && state.escaped;
-    const turkeyScale = screen === SCREEN_TITLE ? 1.09 : escaped ? 1.4 : 1.12;
+    const turkeyScale = screen === SCREEN_TITLE ? 1.20 : escaped ? 1.4 : 1.12;
     drawSky(state, stage);
     drawHills(state, stage, screen);
     drawGround(state, stage);
@@ -1776,7 +1791,14 @@ export function createRenderer(canvas) {
     drawField(state, screen);
     if (screen === SCREEN_TITLE) drawTitle(state, best);
     else if (screen === SCREEN_PAUSED) { drawHud(state, best); drawPaused(); }
-    else if (screen === SCREEN_OVER) { drawHud(state, best); drawOver(state, best, state.escaped); }
+    // Over screen: the celebration is drawn FIRST and the HUD last.
+    // The end frame's gold glow and dim overlay used to paint over
+    // the HUD bar (the bar measured R std 29.2 in its plain zone even
+    // after the bar went opaque), and the headline's cap top sat at
+    // y=75, 3 px under the bar's bottom edge — so the headline and
+    // subtitle moved down 4 px as well, and the HUD is now the
+    // topmost layer on every screen, identical in all four frames.
+    else if (screen === SCREEN_OVER) { drawOver(state, best, state.escaped); drawHud(state, best); }
     else drawHud(state, best);
   }
 
