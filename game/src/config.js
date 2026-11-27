@@ -43,7 +43,7 @@ export const FARMER = {
   hideBonus: 14, // metres lost when the turkey hides in a haystack
 };
 
-export const LIVES = 3;
+export const LIVES = 4; // four hearts: the v1 pilot died on hits 19/20 runs, never on the chase — three lives made one mistake too many
 
 export const OBSTACLE = {
   ovenWidthM: 3.4,
@@ -83,7 +83,7 @@ export const STAGES = [
     sub: 'Past the barn, before the oven cools',
     skyTop: '#f7b733', skyMid: '#f98a3c', skyBot: '#e2603a',
     sun: '#fff3b0', sunGlow: 'rgba(255,214,90,0.55)',
-    hillFar: '#b98a4e', hillNear: '#8a5a30',
+    hillFar: '#9c6a30', hillMid: '#84552a', hillNear: '#6e4520',
     ground: '#a9703a', groundDark: '#8a5527', grass: '#c98f3f',
     tree: '#7d8f2e', treeDark: '#5c7020', leaf: '#e8a13a',
     accent: '#d94f30',
@@ -93,7 +93,7 @@ export const STAGES = [
     sub: 'Lose him between the old oaks',
     skyTop: '#ffe9a8', skyMid: '#f2b25c', skyBot: '#c97e46',
     sun: '#fff8d0', sunGlow: 'rgba(255,220,120,0.45)',
-    hillFar: '#7a7a3d', hillNear: '#55682a',
+    hillFar: '#67672c', hillMid: '#525d24', hillNear: '#3f4f1d',
     ground: '#7d5c2e', groundDark: '#64451f', grass: '#9aa844',
     tree: '#4e6b1e', treeDark: '#38511a', leaf: '#d98a2b',
     accent: '#e07020',
@@ -103,7 +103,7 @@ export const STAGES = [
     sub: 'Cold water, warm feathers — keep running',
     skyTop: '#ffd98a', skyMid: '#f0a35e', skyBot: '#c96f52',
     sun: '#fff6c8', sunGlow: 'rgba(255,205,100,0.5)',
-    hillFar: '#8a7a52', hillNear: '#5f6b3a',
+    hillFar: '#74663f', hillMid: '#5d6034', hillNear: '#46522a',
     ground: '#8a6a34', groundDark: '#6e5223', grass: '#b5a24a',
     tree: '#5d7430', treeDark: '#44571f', leaf: '#e8b23a',
     accent: '#2e7fa8',
@@ -113,7 +113,7 @@ export const STAGES = [
     sub: 'One last fence — then nobody eats tonight',
     skyTop: '#ff9d5c', skyMid: '#e86a6a', skyBot: '#8a4a7a',
     sun: '#ffe9a8', sunGlow: 'rgba(255,170,90,0.6)',
-    hillFar: '#7a5570', hillNear: '#54384e',
+    hillFar: '#63435a', hillMid: '#51344a', hillNear: '#3e2739',
     ground: '#96683a', groundDark: '#7a4f26', grass: '#d99a44',
     tree: '#6b4a2e', treeDark: '#4e3018', leaf: '#f2c14e',
     accent: '#ffd23e',

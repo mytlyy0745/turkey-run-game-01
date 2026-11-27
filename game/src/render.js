@@ -71,7 +71,25 @@ export function createRenderer(canvas) {
     g.addColorStop(1, stage.skyBot);
     context.fillStyle = g;
     context.fillRect(0, 0, FIELD.width, FIELD.groundY);
-    // Low autumn sun with a warm halo.
+    // Clouds drift on the wind — the high ones from the world, plus three
+    // big soft ones lower down, so the middle of the sky is never empty.
+    for (const c of state.clouds) {
+      context.fillStyle = 'rgba(255,248,230,0.85)';
+      ellipse(c.x, c.y, 52 * c.s, 17 * c.s, 'rgba(255,248,230,0.85)');
+      ellipse(c.x - 34 * c.s, c.y + 7 * c.s, 34 * c.s, 13 * c.s, 'rgba(255,248,230,0.8)');
+      ellipse(c.x + 36 * c.s, c.y + 8 * c.s, 36 * c.s, 12 * c.s, 'rgba(255,248,230,0.8)');
+    }
+    for (let i = 0; i < 3; i += 1) {
+      const cx = ((i * 520 + state.elapsed * 9 - state.distance * 2) % (FIELD.width + 360) + FIELD.width + 360) % (FIELD.width + 360) - 180;
+      const cy = 150 + i * 38;
+      const cs = 1.15 + (i % 2) * 0.35;
+      context.fillStyle = 'rgba(255,240,214,0.5)';
+      ellipse(cx, cy, 66 * cs, 18 * cs, 'rgba(255,240,214,0.5)');
+      ellipse(cx - 44 * cs, cy + 7, 42 * cs, 13 * cs, 'rgba(255,240,214,0.45)');
+      ellipse(cx + 46 * cs, cy + 8, 44 * cs, 12 * cs, 'rgba(255,240,214,0.45)');
+    }
+    // Low autumn sun with a warm halo, drawn AFTER the clouds so it
+    // stays a bright disc instead of hiding behind one.
     const sunX = 1020, sunY = 86;
     const glow = context.createRadialGradient(sunX, sunY, 8, sunX, sunY, 190);
     glow.addColorStop(0, stage.sunGlow);
@@ -82,14 +100,7 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(sunX, sunY, 36, 0, Math.PI * 2);
     context.fill();
-    // Clouds drift on the wind.
-    for (const c of state.clouds) {
-      context.fillStyle = 'rgba(255,248,230,0.85)';
-      ellipse(c.x, c.y, 52 * c.s, 17 * c.s, 'rgba(255,248,230,0.85)');
-      ellipse(c.x - 34 * c.s, c.y + 7 * c.s, 34 * c.s, 13 * c.s, 'rgba(255,248,230,0.8)');
-      ellipse(c.x + 36 * c.s, c.y + 8 * c.s, 36 * c.s, 12 * c.s, 'rgba(255,248,230,0.8)');
-    }
-    // Two birds crossing the evening sky.
+    // Two birds crossing the evening sky, and a lower flock of three.
     const bx = (state.elapsed * 26) % (FIELD.width + 200) - 100;
     const by = 62 + Math.sin(state.elapsed * 0.8) * 10;
     context.strokeStyle = 'rgba(60,30,10,0.75)';
@@ -99,6 +110,17 @@ export function createRenderer(canvas) {
       context.beginPath();
       context.moveTo(bx + off - 10, by + flap);
       context.quadraticCurveTo(bx + off, by - 4, bx + off + 10, by + flap);
+      context.stroke();
+    }
+    const fx2 = (FIELD.width + 200 - (state.elapsed * 18) % (FIELD.width + 200)) - 100;
+    const fy2 = 152 + Math.sin(state.elapsed * 0.6 + 2) * 8;
+    context.strokeStyle = 'rgba(60,30,10,0.6)';
+    context.lineWidth = 2.5;
+    for (const off of [0, 34, 62]) {
+      const flap = Math.sin(state.elapsed * 5 + off) * 4;
+      context.beginPath();
+      context.moveTo(fx2 + off - 8, fy2 + flap);
+      context.quadraticCurveTo(fx2 + off, fy2 - 3, fx2 + off + 8, fy2 + flap);
       context.stroke();
     }
   }
@@ -121,7 +143,28 @@ export function createRenderer(canvas) {
 
   function drawHills(state, stage) {
     ridge(state, 0, 46, 340, stage.hillFar, 0.12);
-    ridge(state, 300, 30, 360, stage.hillNear, 0.25);
+    ridge(state, 150, 38, 352, stage.hillMid, 0.18);
+    ridge(state, 300, 30, 366, stage.hillNear, 0.25);
+    // A red barn silhouette rides the far ridge — the farm reads at a
+    // glance even before any fence or pumpkin scrolls past.
+    const scroll = stateScroll(state);
+    const shift = (scroll * 0.12) % 640;
+    for (let i = 0; i < 2; i += 1) {
+      const bx = ((i * 980 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 210;
+      // Same maths as the far ridge, so the barn sits on the hill line.
+      const wx = bx + shift;
+      const by = 340 - Math.abs(Math.sin(wx * 0.006)) * 46 - Math.sin(wx * 0.013) * 46 * 0.35;
+      context.fillStyle = 'rgba(122,44,26,0.85)';
+      context.fillRect(bx - 34, by - 34, 68, 34);
+      context.beginPath();
+      context.moveTo(bx - 40, by - 34);
+      context.lineTo(bx, by - 52);
+      context.lineTo(bx + 40, by - 34);
+      context.closePath();
+      context.fill();
+      context.fillStyle = 'rgba(255,246,224,0.75)';
+      context.fillRect(bx - 6, by - 22, 12, 22);
+    }
   }
 
   // ---- ground and mid scenery ----
@@ -152,6 +195,9 @@ export function createRenderer(canvas) {
     for (const s of state.scenery) {
       const sx = TURKEY_X + (s.at - state.distance) * PX_PER_M;
       if (sx < -160 || sx > FIELD.width + 160) continue;
+      // No tree or bush ever stands right behind the turkey: the bird
+      // must read against open ground, not blend into a canopy.
+      if ((s.kind === 0 && Math.abs(sx - TURKEY_X) < 150) || (s.kind === 4 && Math.abs(sx - TURKEY_X) < 110)) continue;
       const gy = FIELD.groundY;
       if (s.kind === 0) drawTree(sx, gy, 0.8 + s.lane * 0.5, stage, s.seed);
       else if (s.kind === 1) drawFenceRun(sx, gy, stage);
@@ -254,7 +300,7 @@ export function createRenderer(canvas) {
     }
     context.fillStyle = '#fff6e0';
     context.fillRect(fx - 70, FIELD.groundY - 80, 140, 8);
-    text('FREEDOM', fx, FIELD.groundY - 118, 26, '#ffd23e', 'center', '900');
+    text('FREEDOM', fx - 20, FIELD.groundY - 132, 26, '#ffd23e', 'center', '900');
   }
 
   // ---- hazards and pickups ----
@@ -295,7 +341,10 @@ export function createRenderer(canvas) {
       context.closePath();
       context.fill();
     }
-    text('OVEN!', sx + wPx / 2, gy - 88, 20, '#ffb03a', 'center', '900');
+    // The warning label only for an oven still ahead: one the turkey
+    // already passed sits behind the farmer and its label would
+    // collide with him.
+    if (sx > TURKEY_X) text('OVEN!', sx + wPx / 2, gy - 88, 20, '#ffb03a', 'center', '900');
   }
 
   function drawFenceObstacle(sx, wPx, h) {
@@ -413,6 +462,8 @@ export function createRenderer(canvas) {
     const bodyW = ducking ? 74 : 62;
     const blink = p.invulnerable > 0 && Math.floor(p.invulnerable * 10) % 2 === 0;
     if (blink || p.hiding > 0) return; // hidden behind the haystack, or blinking off
+    // A soft contact shadow grounds the turkey, even mid-jump.
+    ellipse(cx, gy + 4, 34 * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
     context.save();
     context.translate(cx, feetY);
     context.scale(squashX, squashY);
@@ -526,12 +577,20 @@ export function createRenderer(canvas) {
     const gap = f.gap;
     // The pursuer is always on screen, clamped to the left edge: the
     // chase must read at a glance in every frame. The metres above him
-    // and the progress bar give the true distance.
-    const fx = Math.max(TURKEY_X - gap * PX_PER_M, 16);
+    // and the progress bar give the true distance. The clamp keeps his
+    // whole body on screen, and the label sits on a dark pill so it
+    // never clips against the edge or washes out against the sky.
+    const fx = Math.max(TURKEY_X - gap * PX_PER_M, 34);
     const gy = FIELD.groundY;
     const bob = Math.abs(Math.sin(f.anim)) * 6;
     const windup = f.windup > 0;
-    if (gap > 22) text(`${Math.round(gap)}m`, fx + 4, gy - 196, 17, '#ffd9d0', 'center', '800');
+    if (gap > 22) {
+      const label = `${Math.round(gap)}m`;
+      pill(fx - 20, gy - 214, 52, 26, 9, 'rgba(20,10,2,0.65)');
+      text(label, fx + 6, gy - 195, 17, '#ffd9d0', 'center', '800');
+    }
+    // Soft contact shadow under the farmer.
+    ellipse(fx + 4, gy + 4, 26, 6, 'rgba(20,10,2,0.28)');
     context.save();
     context.translate(fx, gy - bob);
     // Boots and legs mid-stride.
@@ -678,16 +737,32 @@ export function createRenderer(canvas) {
       context.fillStyle = 'rgba(255,246,224,0.9)';
       context.fillRect(tx - 1, barY + 10, 2, 20);
     }
-    // Turkey and farmer markers ride inside the bar.
+    // Turkey and farmer markers ride ON TOP of the bar as solid
+    // triangles — emoji at 16 px turned to mush when the sheet shrinks.
+    // They straddle the bar's top edge, clear of the ESCAPE label above.
     const tx = barX + barW * prog;
-    text('🦃', tx, barY + 25, 16, '#fff', 'center');
-    const fx = barX + barW * clamp((state.distance - state.farmer.gap) / TOTAL_DISTANCE, 0, 1);
-    text('🧑‍🌾', fx, barY + 25, 16, '#fff', 'center');
+    const fxm = barX + barW * clamp((state.distance - state.farmer.gap) / TOTAL_DISTANCE, 0, 1);
+    function marker(mx, color) {
+      context.fillStyle = color;
+      context.strokeStyle = 'rgba(20,10,2,0.8)';
+      context.lineWidth = 1.5;
+      context.beginPath();
+      context.moveTo(mx - 8, barY + 8);
+      context.lineTo(mx + 8, barY + 8);
+      context.lineTo(mx, barY + 18);
+      context.closePath();
+      context.fill();
+      context.stroke();
+    }
+    // When the chase is tight the two markers would sit on each other:
+    // nudge the farmer's a little to the left so both still read.
+    marker(tx, '#ffd23e');
+    marker(Math.abs(tx - fxm) < 16 ? fxm - 14 : fxm, '#ff5a3c');
     text(`${Math.floor(state.distance)}m / ${TOTAL_DISTANCE}m`, barX + barW / 2, 66, 17, PALETTE.text, 'center', '700');
     // Hearts on the right.
     text('LIVES', 1150, 34, 15, PALETTE.muted, 'left', '800');
     for (let i = 0; i < LIVES; i += 1) {
-      const hx = 1152 + i * 34;
+      const hx = 1146 + i * 30;
       const alive = i < state.lives;
       context.fillStyle = alive ? '#ff5a3c' : 'rgba(255,255,255,0.18)';
       context.beginPath();
@@ -769,10 +844,16 @@ export function createRenderer(canvas) {
 
   function drawOver(state, best, escaped) {
     const score = Math.floor(state.score);
-    context.fillStyle = escaped ? 'rgba(60,40,0,0.45)' : 'rgba(20,4,2,0.62)';
+    context.fillStyle = escaped ? 'rgba(60,40,0,0.30)' : 'rgba(20,4,2,0.62)';
     context.fillRect(0, 0, FIELD.width, FIELD.height);
     if (escaped) {
-      // Golden fireworks of feathers over the freedom fence.
+      // Golden fireworks of feathers over the freedom fence — bigger,
+      // with a warm glow behind the headline so it punches through.
+      const glow = context.createRadialGradient(640, 120, 10, 640, 120, 260);
+      glow.addColorStop(0, 'rgba(255,190,60,0.5)');
+      glow.addColorStop(1, 'rgba(255,190,60,0)');
+      context.fillStyle = glow;
+      context.fillRect(380, -40, 520, 320);
       for (let i = 0; i < 24; i += 1) {
         const a = (i / 24) * Math.PI * 2 + state.elapsed * 0.2;
         const r = 90 + ((i * 53) % 120);
@@ -780,8 +861,19 @@ export function createRenderer(canvas) {
         const fy = 140 + Math.sin(a) * r * 0.5;
         context.fillStyle = i % 3 === 0 ? '#ffd23e' : i % 3 === 1 ? '#ff7a1e' : '#fff6e0';
         context.beginPath();
-        context.arc(fx, fy, 4 + (i % 3), 0, Math.PI * 2);
+        context.arc(fx, fy, 5 + (i % 3) * 2, 0, Math.PI * 2);
         context.fill();
+        // Cross sparkle on every third burst.
+        if (i % 3 === 0) {
+          context.strokeStyle = 'rgba(255,246,224,0.9)';
+          context.lineWidth = 2;
+          context.beginPath();
+          context.moveTo(fx - 10, fy);
+          context.lineTo(fx + 10, fy);
+          context.moveTo(fx, fy - 10);
+          context.lineTo(fx, fy + 10);
+          context.stroke();
+        }
       }
       text('ESCAPED!', 640, 132, 80, '#ffd23e', 'center', '900');
       text('The turkey made it past the freedom fence —', 640, 168, 22, PALETTE.text, 'center', '700');
