@@ -174,23 +174,69 @@ export function createRenderer(canvas) {
     g.addColorStop(1, stage.groundDark);
     context.fillStyle = g;
     context.fillRect(0, FIELD.groundY, FIELD.width, FIELD.height - FIELD.groundY);
-    // A dirt track the turkey runs on.
+    // A dirt track the turkey runs on: a pale worn centre, two dark
+    // wheel ruts, pebbles, footprints and fallen leaves — a road with
+    // texture, not a flat band. The grass stays on the verge above the
+    // track, in sparse three-blade tufts, so it reads as grass instead
+    // of noise scribbled across the whole ground.
     context.fillStyle = 'rgba(60,32,8,0.35)';
     context.fillRect(0, FIELD.groundY + 34, FIELD.width, 44);
-    // Grass tufts and fallen leaves scrolling past.
+    context.fillStyle = 'rgba(233,190,120,0.22)';
+    context.fillRect(0, FIELD.groundY + 40, FIELD.width, 32);
     const scroll = stateScroll(state);
-    for (let i = 0; i < 46; i += 1) {
-      const wx = i * 173 + ((i * 97) % 50);
+    context.strokeStyle = 'rgba(60,32,8,0.4)';
+    context.lineWidth = 5;
+    for (const ry of [FIELD.groundY + 48, FIELD.groundY + 66]) {
+      context.beginPath();
+      for (let x = 0; x <= FIELD.width; x += 32) {
+        const y = ry + Math.sin((x + scroll * 0.5) * 0.01) * 2;
+        if (x === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      }
+      context.stroke();
+    }
+    // Pebbles and fallen leaves on the track, scrolling with the world.
+    const leafCols = ['#e8a13a', '#d94f30', '#f2c14e'];
+    for (let i = 0; i < 34; i += 1) {
+      const wx = i * 197 + ((i * 89) % 60);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
-      const gy = FIELD.groundY + 6 + ((i * 53) % 64);
-      context.strokeStyle = stage.grass;
-      context.lineWidth = 2;
+      const py = FIELD.groundY + 40 + ((i * 37) % 32);
+      if (i % 3 === 0) ellipse(sx, py, 3 + (i % 3), 2, 'rgba(90,55,20,0.5)');
+      else if (i % 5 === 0) ellipse(sx, py, 5, 3, leafCols[i % 3]);
+    }
+    // Footprints marching along the track — a pair per stride.
+    context.fillStyle = 'rgba(60,32,8,0.35)';
+    for (let i = 0; i < 14; i += 1) {
+      const wx = i * 97;
+      const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
+      const fy = FIELD.groundY + 56 + (i % 2 === 0 ? -5 : 5);
+      context.beginPath();
+      context.ellipse(sx, fy, 4, 2.5, 0, 0, Math.PI * 2);
+      context.fill();
+    }
+    // Grass tufts on the verge above the track, sparse and three-bladed.
+    for (let i = 0; i < 26; i += 1) {
+      const wx = i * 211 + ((i * 131) % 70);
+      const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
+      const gy = FIELD.groundY + 4 + ((i * 41) % 26);
+      const h = 8 + (i % 3) * 4;
+      context.strokeStyle = i % 4 === 0 ? stage.treeDark : stage.grass;
+      context.lineWidth = 2.5;
       context.beginPath();
       context.moveTo(sx, gy);
-      context.lineTo(sx - 3, gy - 9);
-      context.moveTo(sx + 3, gy);
-      context.lineTo(sx + 5, gy - 8);
+      context.lineTo(sx - 4, gy - h);
+      context.moveTo(sx, gy);
+      context.lineTo(sx, gy - h - 3);
+      context.moveTo(sx + 4, gy);
+      context.lineTo(sx + 6, gy - h + 2);
       context.stroke();
+    }
+    // A few flat fallen leaves resting on the verge.
+    for (let i = 0; i < 14; i += 1) {
+      const wx = i * 263 + ((i * 71) % 80);
+      const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
+      const ly = FIELD.groundY + 8 + ((i * 29) % 22);
+      ellipse(sx, ly, 6, 3.5, leafCols[i % 3]);
     }
     for (const s of state.scenery) {
       const sx = TURKEY_X + (s.at - state.distance) * PX_PER_M;
@@ -449,6 +495,10 @@ export function createRenderer(canvas) {
   }
 
   // ---- the turkey ----
+  // Four poses that read at a glance: a pumping run, a stretched jump
+  // with wings thrown wide, a low slide, and a dazed hurt wobble. The
+  // tail fan, wing angle, legs and eye all change with the pose, so the
+  // bird looks alive instead of like one frozen cut-out.
   function drawTurkey(state) {
     const p = state.player;
     const gy = FIELD.groundY;
@@ -462,11 +512,15 @@ export function createRenderer(canvas) {
     const bodyW = ducking ? 74 : 62;
     const blink = p.invulnerable > 0 && Math.floor(p.invulnerable * 10) % 2 === 0;
     if (blink || p.hiding > 0) return; // hidden behind the haystack, or blinking off
+    const pose = air ? 'jump' : ducking ? 'slide' : p.squash > 0.4 ? 'hurt' : 'run';
+    const runBob = pose === 'run' ? Math.sin(p.runPhase * 2) * 3 : 0;
+    const tilt = pose === 'jump' ? -0.16 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.06 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
     // A soft contact shadow grounds the turkey, even mid-jump.
     ellipse(cx, gy + 4, 34 * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
     context.save();
-    context.translate(cx, feetY);
-    context.scale(squashX, squashY);
+    context.translate(cx, feetY + runBob);
+    context.rotate(tilt);
+    context.scale(squashX * (pose === 'jump' ? 0.96 : 1), squashY * (pose === 'jump' ? 1.06 : 1));
     if (p.pumpkin > 0) {
       const glow = context.createRadialGradient(0, -44, 6, 0, -44, 110);
       glow.addColorStop(0, 'rgba(255,210,62,0.55)');
@@ -474,15 +528,18 @@ export function createRenderer(canvas) {
       context.fillStyle = glow;
       context.fillRect(-110, -160, 220, 220);
     }
-    // Fanned tail feathers — the silhouette that says "turkey".
-    const tailSpread = ducking ? 0.5 : 1;
+    // Fanned tail feathers — the silhouette that says "turkey". The fan
+    // wags as it runs, spreads wide and lifts in a jump, flattens back
+    // in a slide and droops when hurt.
+    const tailSpread = pose === 'jump' ? 1.3 : pose === 'slide' ? 0.4 : pose === 'hurt' ? 0.55 : 1 + Math.sin(p.runPhase * 2) * 0.18;
+    const tailLift = pose === 'jump' ? -0.35 : pose === 'slide' ? 0.3 : pose === 'hurt' ? 0.35 : 0;
     for (let i = -2; i <= 2; i += 1) {
       const ang = i * 0.42 * tailSpread;
-      const len = 48 - Math.abs(i) * 5;
+      const len = (pose === 'jump' ? 58 : 48) - Math.abs(i) * 5;
       const col = PALETTE.tail[i + 2];
       context.save();
       context.translate(-6, -bodyH + 26);
-      context.rotate(ang - 0.5);
+      context.rotate(ang - 0.5 + tailLift);
       context.fillStyle = col;
       context.beginPath();
       context.ellipse(0, -len / 2, 15, len / 2, 0, 0, Math.PI * 2);
@@ -493,17 +550,56 @@ export function createRenderer(canvas) {
       context.fill();
       context.restore();
     }
-    // Legs — a two-beat run cycle, tucked up in the air.
-    const legSwing = air ? 0.5 : Math.sin(p.runPhase * 2) * 0.9;
+    // Legs — a big two-beat stride while running, tucked up in the air,
+    // stretched out behind in a slide, splayed when hurt.
+    const legSwing = Math.sin(p.runPhase * 2);
     context.strokeStyle = '#e8a33c';
     context.lineWidth = 5;
     context.lineCap = 'round';
     context.beginPath();
-    context.moveTo(-4, -14);
-    context.lineTo(-4 + Math.sin(p.runPhase * 2) * 10, 0);
-    context.moveTo(10, -14);
-    context.lineTo(10 - Math.sin(p.runPhase * 2) * 10, 0);
+    if (pose === 'jump') {
+      context.moveTo(-4, -14);
+      context.lineTo(2, -2);
+      context.moveTo(10, -14);
+      context.lineTo(16, -4);
+    } else if (pose === 'slide') {
+      context.moveTo(-4, -14);
+      context.lineTo(-24, -2);
+      context.moveTo(10, -14);
+      context.lineTo(-14, -2);
+    } else if (pose === 'hurt') {
+      context.moveTo(-4, -14);
+      context.lineTo(-16, 0);
+      context.moveTo(10, -14);
+      context.lineTo(22, 0);
+    } else {
+      context.moveTo(-4, -14);
+      context.lineTo(-4 + legSwing * 15, 0);
+      context.moveTo(10, -14);
+      context.lineTo(10 - legSwing * 15, 0);
+    }
     context.stroke();
+    if (pose === 'run') {
+      // Little feet at the end of each stride.
+      context.lineWidth = 4;
+      context.beginPath();
+      context.moveTo(-4 + legSwing * 15, 0);
+      context.lineTo(-4 + legSwing * 15 + 8, 0);
+      context.moveTo(10 - legSwing * 15, 0);
+      context.lineTo(10 - legSwing * 15 + 8, 0);
+      context.stroke();
+    }
+    // Far wing: a darker sliver behind the body, visible when raised.
+    if (pose === 'jump' || pose === 'hurt') {
+      context.save();
+      context.translate(-6, -bodyH / 2 - 10);
+      context.rotate(pose === 'jump' ? -1.0 + Math.sin(state.elapsed * 16) * 0.3 : -0.7 + Math.sin(state.elapsed * 20) * 0.3);
+      context.fillStyle = PALETTE.turkeyDark;
+      context.beginPath();
+      context.ellipse(-6, -4, 18, 11, 0, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
+    }
     // Plump body with scalloped feather rows.
     context.fillStyle = PALETTE.turkeyBody;
     context.beginPath();
@@ -517,19 +613,33 @@ export function createRenderer(canvas) {
         context.fill();
       }
     }
-    // Wing — tucked while running, thrown wide on a jump.
-    const wingFlap = air ? -0.9 + Math.sin(state.elapsed * 14) * 0.35 : Math.sin(p.runPhase * 2) * 0.12;
+    // Near wing — pumping while running, thrown wide on a jump, tucked
+    // flat in a slide, flailing when hurt. A lighter brown with a dark
+    // outline, so it reads against the darker body instead of melting
+    // into it.
+    const wingFlap = pose === 'jump' ? -1.25 + Math.sin(state.elapsed * 16) * 0.35 : pose === 'slide' ? 0.55 : pose === 'hurt' ? -0.9 + Math.sin(state.elapsed * 20) * 0.3 : Math.sin(p.runPhase * 2) * 0.4 - 0.15;
+    const wingLen = pose === 'jump' ? 26 : 20;
+    const wingH = pose === 'jump' ? 14 : 12;
     context.save();
     context.translate(2, -bodyH / 2 - 8);
     context.rotate(wingFlap);
-    context.fillStyle = PALETTE.turkeyDark;
+    context.fillStyle = '#a06830';
+    context.strokeStyle = '#5a3a1a';
+    context.lineWidth = 2;
     context.beginPath();
-    context.ellipse(-4, 0, 20, 12, 0, 0, Math.PI * 2);
+    context.ellipse(-4, 0, wingLen, wingH, 0, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
+    context.fillStyle = 'rgba(255,246,224,0.35)';
+    context.beginPath();
+    context.ellipse(-8, -3, 8, 4, 0, 0, Math.PI * 2);
     context.fill();
     context.restore();
-    // Neck, head, beak, wattle and a bright eye.
-    const headX = 26;
-    const headY = -bodyH - 14 + (ducking ? 10 : 0);
+    // Neck, head, beak, wattle and a bright eye — the head rides higher
+    // and the eye goes wide in a jump, narrows in a slide, and turns
+    // into a dizzy X when hurt.
+    const headX = 26 + (pose === 'slide' ? 6 : 0);
+    const headY = -bodyH - 14 + (ducking ? 10 : 0) - (pose === 'jump' ? 8 : 0);
     context.fillStyle = PALETTE.turkeyBody;
     context.fillRect(headX - 6, headY + 6, 12, 18);
     context.fillStyle = '#d9c8a8';
@@ -547,14 +657,32 @@ export function createRenderer(canvas) {
     context.lineTo(headX + 10, headY + 6);
     context.closePath();
     context.fill();
-    context.fillStyle = '#1c1410';
-    context.beginPath();
-    context.arc(headX + 4, headY - 4, 2.6, 0, Math.PI * 2);
-    context.fill();
-    context.fillStyle = '#fff';
-    context.beginPath();
-    context.arc(headX + 5, headY - 5, 1, 0, Math.PI * 2);
-    context.fill();
+    if (pose === 'hurt') {
+      context.strokeStyle = '#1c1410';
+      context.lineWidth = 2.5;
+      context.beginPath();
+      context.moveTo(headX + 1, headY - 7);
+      context.lineTo(headX + 7, headY - 1);
+      context.moveTo(headX + 7, headY - 7);
+      context.lineTo(headX + 1, headY - 1);
+      context.stroke();
+    } else if (pose === 'slide') {
+      context.strokeStyle = '#1c1410';
+      context.lineWidth = 2.5;
+      context.beginPath();
+      context.moveTo(headX + 1, headY - 4);
+      context.lineTo(headX + 8, headY - 4);
+      context.stroke();
+    } else {
+      context.fillStyle = '#1c1410';
+      context.beginPath();
+      context.arc(headX + 4, headY - 4, pose === 'jump' ? 3.4 : 2.6, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = '#fff';
+      context.beginPath();
+      context.arc(headX + 5, headY - 5, pose === 'jump' ? 1.4 : 1, 0, Math.PI * 2);
+      context.fill();
+    }
     // A red snood over the beak, and a feather shield ring when armed.
     context.fillStyle = PALETTE.wattle;
     context.beginPath();
@@ -567,8 +695,20 @@ export function createRenderer(canvas) {
       context.arc(4, -bodyH / 2 - 4, 52, 0, Math.PI * 2);
       context.stroke();
     }
+    // Dash speed lines streaming past the tail.
+    if (p.dashing) {
+      context.strokeStyle = 'rgba(255,246,224,0.5)';
+      context.lineWidth = 3;
+      context.beginPath();
+      for (let i = 0; i < 3; i += 1) {
+        const ly = -20 - i * 18;
+        const lx = -52 - ((state.elapsed * 300 + i * 40) % 40);
+        context.moveTo(lx, ly);
+        context.lineTo(lx + 26, ly);
+      }
+      context.stroke();
+    }
     context.restore();
-    void legSwing;
   }
 
   // ---- the farmer ----
@@ -831,6 +971,15 @@ export function createRenderer(canvas) {
     const blink = Math.floor(state.elapsed * 2) % 2 === 0;
     if (blink) text('▶  PRESS SPACE OR CLICK TO RUN', 640, 362, 26, '#fff6e0', 'center', '900');
     text('A 1,500 m dash through the farmyard, the woods, the riverbank — to the freedom fence.', 640, 452, 16, 'rgba(255,246,224,0.75)', 'center', '700');
+    // Foreground corners, so the bottom of the title is not empty stage:
+    // a pumpkin pile on the left, a fence run and a hay bale on the
+    // right. They sit clear of the farmer (left edge) and the turkey.
+    drawPumpkin(96, FIELD.groundY - 6, 26);
+    drawPumpkin(142, FIELD.groundY - 4, 20);
+    drawPumpkin(118, FIELD.groundY - 28, 17);
+    drawFenceRun(1150, FIELD.groundY, STAGES[state.stage]);
+    drawHayBale(1218, FIELD.groundY, 0.9);
+    drawPumpkin(1096, FIELD.groundY - 4, 16);
   }
 
   function drawPaused() {
