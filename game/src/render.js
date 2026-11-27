@@ -1712,6 +1712,22 @@ export function createRenderer(canvas) {
       }
       if (passed) context.restore();
     }
+    // Title only: a pool of warm light behind the bird. On the title
+    // the turkey stands against the near hill (#6e4520) in almost its
+    // own browns (#8a5a2e body), so at half size it sank into the
+    // hillside; the glow lifts the hill behind it into a lit backdrop
+    // without moving the bird, and it never touches another screen —
+    // the instruction panel is drawn on top of it afterwards.
+    if (screen === SCREEN_TITLE) {
+      const gx = TURKEY_X + TURKEY.width / 2;
+      const gy = FIELD.groundY - 55;
+      const glow = context.createRadialGradient(gx, gy, 10, gx, gy, 170);
+      glow.addColorStop(0, 'rgba(255,232,170,0.6)');
+      glow.addColorStop(0.55, 'rgba(255,222,150,0.28)');
+      glow.addColorStop(1, 'rgba(255,222,150,0)');
+      context.fillStyle = glow;
+      context.fillRect(gx - 170, gy - 170, 340, 340);
+    }
     drawTurkey(state, turkeyScale, escaped);
     drawFarmer(state, escaped ? 1.0 : 1.22);
     // Haystacks stand in front, so a hiding turkey really disappears.

@@ -135,6 +135,22 @@ function ovenInFrame(state) {
   return ok;
 }
 
+// An oven the turkey is actually jumping over: its body overlaps
+// the turkey's own screen span [TURKEY_X, TURKEY_X + 62], so the bird
+// is above the oven's near edge or just clearing it — not an oven
+// 30 m down the road while the bird jumps a fence. The overlap is
+// thin at the top of the permitted arc (the oven's left edge slides
+// under the bird's beak as it rises), which is exactly the moment
+// the cover wants: bird mid-leap, oven right below its nose.
+function ovenUnder(state) {
+  for (const e of state.entities) {
+    if (!e.active || e.kind !== KIND_OVEN) continue;
+    const sx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
+    if (sx < TURKEY_X + TURKEY.width && sx + e.w * PX_PER_M > TURKEY_X) return true;
+  }
+  return false;
+}
+
 export function stageShot(name, world) {
   world.reset();
   if (name !== 'play' && name !== 'danger' && name !== 'end') {
@@ -145,12 +161,18 @@ export function stageShot(name, world) {
     return { screen: SCREEN_TITLE, best: 0 };
   }
   if (name === 'play') {
-    // The cover runs on seed 54 (not 7): on seed 7 the picked leap
-    // never has a knife near the bird or a combo — the only knife in
-    // that jump is 24 m out, faded to alpha 0.2 — while seed 54's
-    // picked leap (36.9 s, 668 pts, 313 m) has a knife 66 px from the
-    // turkey at head height and COMBO x4. Same pick rules, same
-    // autopilot; only the seed changed, so no gameplay code moved.
+    // The cover runs on seed 57 (not 54): the new oven-under pick
+    // (see airOven below) keeps the highest leap where an oven sits
+    // under the bird, and seed 57's is the cleanest of the eight
+    // seeds that have one with a near knife and a combo — 24.2 s,
+    // 445 pts, 205 m, COMBO x2, knife 68 px off the feet just below
+    // the bird over the oven's flames, 4 lives. Seed 69 has a bigger
+    // combo (x5) and a closer knife (51 px) but its knife is low and
+    // half-hidden across the oven, and a shield ring circles the
+    // bird; seed 54 (round 12) has the knife at head height and
+    // COMBO x4, but the bird jumps a fence with the ovens far down
+    // the road. Same pick rules, same autopilot; only the seed
+    // changed, so no gameplay code moved.
     // One 40 s pass, keeping the frame where the chase was closest —
     // the farmer in frame behind the turkey — with something to dodge
     // ahead. The airborne frame wins over the merely close one: a
@@ -169,6 +191,15 @@ export function stageShot(name, world) {
     let bestGap = Infinity;
     let air = null;
     let airY = 60;
+    // A leap over an oven beats a leap over a fence: among leaps
+    // where an oven sits under the bird, keep the highest one, and
+    // prefer it over the plain highest leap. Seed 54's cover (round
+    // 12) has a knife at head height and COMBO x4, but the bird is
+    // jumping a fence with the ovens far down the road; seed 69's
+    // oven-under leap (35.9 s, 1110 pts, COMBO x5, knife 51 px off
+    // the beak, farmer 21 m back) tells the oven story instead.
+    let airOven = null;
+    let airOvenY = 60;
     let fallback = null;
     const steps = Math.floor(40 / STEP);
     for (let i = 0; i < steps; i += 1) {
@@ -184,8 +215,13 @@ export function stageShot(name, world) {
         airY = s.player.y;
         air = snapshotState(s);
       }
+      if (s.elapsed > 12 && s.score > 50 && hazardAhead(s, 20) && s.player.y > airOvenY && s.player.y <= 135 && ovenInFrame(s) && ovenUnder(s)) {
+        airOvenY = s.player.y;
+        airOven = snapshotState(s);
+      }
     }
-    if (air !== null) restoreState(world.state, air);
+    if (airOven !== null) restoreState(world.state, airOven);
+    else if (air !== null) restoreState(world.state, air);
     else if (best !== null) restoreState(world.state, best);
     else if (fallback !== null) restoreState(world.state, fallback);
     return { screen: SCREEN_PLAY, best: Math.floor(world.state.score) };
@@ -196,6 +232,12 @@ export function stageShot(name, world) {
     // take what the run gives. Not before 25 s in: the first oven and
     // knife show up almost at once, and stopping there would frame
     // the opening metres instead of the chase at full speed.
+    // The danger seed is 19 (not 7): a 2-D probe of seeds 1..150
+    // found seed 7's picked frame ranks only 71st of 113 — its knife
+    // is a low blade 141 px from the bird, out by the farmer — while
+    // seed 19's knife is a high blade 47 px below the turkey's feet
+    // (the structural floor: a high knife at y=108 flies 47 px under
+    // feet at y=155), oven directly under the bird, 3265 pts, 665 m.
     // The turkey must be properly airborne over the oven: the old
     // frame caught it standing on the ground right at the oven, body
     // pressed against the flames, so it read as a turkey being
