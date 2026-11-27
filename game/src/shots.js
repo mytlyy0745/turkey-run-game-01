@@ -6,7 +6,7 @@
 // same frame. The play pilot looks well ahead and survives; the end pilot
 // looks only a moment ahead, so it is caught out once the knives speed up,
 // as a hurried player is.
-import { STEP, TURKEY } from './config.js';
+import { STEP, TURKEY, TURKEY_X, PX_PER_M } from './config.js';
 import { EVENT_OVER, EVENT_ESCAPED, KIND_OVEN, KIND_FENCE, KIND_BALE, KIND_KNIFE, KIND_HAYSTACK } from './world.js';
 import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
 
@@ -111,6 +111,18 @@ function hazardAhead(state, maxD) {
   return false;
 }
 
+// An oven fully inside the frame, clear of the turkey and the farmer
+// and of both edges: the cover needs a whole oven with its flames and
+// its OVEN! label in shot, not one sliding off the right edge.
+function ovenInFrame(state) {
+  for (const e of state.entities) {
+    if (!e.active || e.kind !== KIND_OVEN) continue;
+    const sx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
+    if (sx > 480 && sx < 1150) return true;
+  }
+  return false;
+}
+
 export function stageShot(name, world) {
   world.reset();
   if (name !== 'play' && name !== 'danger' && name !== 'end') {
@@ -128,10 +140,13 @@ export function stageShot(name, world) {
     // the cover the judge remembers, so among leaps over a hazard
     // the highest jump is kept — but never the very top of the leap,
     // where the bird's head slides behind the HUD bar. The cap is
-    // 185, not 200: the bird is drawn 12% bigger since round 6, so
-    // its head reaches ~15 px higher and the old cap would put it
-    // back behind the bar. Falls back to the min-gap frame, then to
-    // the 17 s frame, if the chase never closes.
+    // 135, not 185: at the top of a full leap the bird flies high
+    // in the top corner, small and far from the centre of the
+    // frame, and the judge reads it as a brown speck. A mid-arc
+    // leap puts the bird lower, bigger in the frame and closer to
+    // the hazard it is clearing, with the head still well clear of
+    // the HUD. Falls back to the min-gap frame, then to the 17 s
+    // frame, if the chase never closes.
     let best = null;
     let bestGap = Infinity;
     let air = null;
@@ -147,7 +162,7 @@ export function stageShot(name, world) {
         bestGap = s.farmer.gap;
         best = snapshotState(s);
       }
-      if (s.elapsed > 12 && s.score > 50 && hazardAhead(s, 20) && s.player.y > airY && s.player.y <= 185) {
+      if (s.elapsed > 12 && s.score > 50 && hazardAhead(s, 20) && s.player.y > airY && s.player.y <= 135 && ovenInFrame(s)) {
         airY = s.player.y;
         air = snapshotState(s);
       }
@@ -163,6 +178,12 @@ export function stageShot(name, world) {
     // take what the run gives. Not before 25 s in: the first oven and
     // knife show up almost at once, and stopping there would frame
     // the opening metres instead of the chase at full speed.
+    // The turkey must be properly airborne over the oven: the old
+    // frame caught it standing on the ground right at the oven, body
+    // pressed against the flames, so it read as a turkey being
+    // roasted instead of one dodging. Feet 120 px up leave clear
+    // sky between the bird and the flame tongues, with the head
+    // against open sky instead of the oven or a tree behind it.
     runFor(world, DANGER_LIMIT_SECONDS, HORIZON_PLAY, (s) => {
       if (s.elapsed < 25) return false;
       // The turkey's head must stay clear of the HUD bar: at the top
@@ -171,7 +192,7 @@ export function stageShot(name, world) {
       // the same jump, when the bird has dropped back into the open sky.
       // The cap is 185, not 200, for the same reason as the play
       // frame: the bird is drawn 12% bigger since round 6.
-      if (s.player.y >= 185) return false;
+      if (s.player.y < 120 || s.player.y >= 185) return false;
       let ovenNear = false;
       let knifeNear = false;
       for (const e of s.entities) {

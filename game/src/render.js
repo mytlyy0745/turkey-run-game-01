@@ -88,6 +88,35 @@ export function createRenderer(canvas) {
       ellipse(cx - 44 * cs, cy + 7, 42 * cs, 13 * cs, 'rgba(255,240,214,0.45)');
       ellipse(cx + 46 * cs, cy + 8, 44 * cs, 12 * cs, 'rgba(255,240,214,0.45)');
     }
+    // A soft cloud that gathers beside the turkey at the top of a leap:
+    // the cover turkey jumps through a patch of sky that used to sit
+    // empty between the big cloud above and the low cloud below, so a
+    // faint cloud fades in with the jump itself (alpha follows the
+    // jump height) and fades out again on the ground — it is never
+    // there when the bird is running, so it never crowds the HUD, the
+    // title text or the end screen, and it never touches the gameplay
+    // random stream. It drifts slowly, so it never sits in exactly
+    // the same spot twice.
+    const jumpK = clamp(state.player.y / 140, 0, 1);
+    if (jumpK > 0.02) {
+      const jx = 495 + Math.sin(state.elapsed * 0.3) * 26;
+      const jy = 178 + Math.sin(state.elapsed * 0.45) * 5;
+      const ja = 0.42 * jumpK;
+      ellipse(jx, jy, 50, 13, `rgba(255,244,222,${ja})`);
+      ellipse(jx - 34, jy + 6, 32, 10, `rgba(255,244,222,${ja * 0.9})`);
+      ellipse(jx + 36, jy + 7, 34, 10, `rgba(255,244,222,${ja * 0.9})`);
+    }
+    // One anchored cloud low in the middle band: the danger frame's
+    // mid-sky used to be a bare orange wash between the high clouds
+    // and the hills, and the play frame had the same gap on the
+    // right. It bobs gently instead of scrolling, like the high
+    // cloud by the sun, so it is there in every frame — except the
+    // title and the end screen, where the panels cover it.
+    const mx = 620 + Math.sin(state.elapsed * 0.22) * 18;
+    const my = 215 + Math.sin(state.elapsed * 0.4) * 4;
+    ellipse(mx, my, 56, 14, 'rgba(255,244,222,0.38)');
+    ellipse(mx - 38, my + 6, 36, 10, 'rgba(255,244,222,0.34)');
+    ellipse(mx + 40, my + 7, 38, 10, 'rgba(255,244,222,0.34)');
     // Low autumn sun with a warm halo, drawn AFTER the clouds so it
     // stays a bright disc instead of hiding behind one. Its centre
     // sits at y=116 so the whole disc clears the HUD bar (which ends
@@ -167,7 +196,7 @@ export function createRenderer(canvas) {
   }
   function stateScroll(state) { return state.distance * PX_PER_M; }
 
-  function drawHills(state, stage) {
+  function drawHills(state, stage, screen) {
     ridge(state, 0, 46, 340, stage.hillFar, 0.12);
     ridge(state, 150, 38, 352, stage.hillMid, 0.18);
     ridge(state, 300, 30, 366, stage.hillNear, 0.25);
@@ -178,10 +207,21 @@ export function createRenderer(canvas) {
     // frame's flying knife, so the white trail crossed the barn's
     // door and the blade cut across its roof. Shifted, the knife
     // flies through open sky with ~90 px clear of the nearest barn.
+    // On the title the barns use a phase 550 px further right
+    // instead: the title is a fixed scene (distance 0), so one barn
+    // always landed dead centre behind the instruction panel, with
+    // only its bottom 22 px and white door poking out under the
+    // panel's gold edge. Shifted, the two barns sit at x~190 and
+    // x~1170 — both fully clear of the panel (250..1030), one in the
+    // open sky left of it, one beside the right-hand fence. The
+    // title phase is title-only: shifting the barns everywhere would
+    // push one onto the danger frame's turkey and oven, and one
+    // behind the end frame's score panel.
+    const barnPhase = screen === SCREEN_TITLE ? 190 : -360;
     const scroll = stateScroll(state);
     const shift = (scroll * 0.12) % 640;
     for (let i = 0; i < 2; i += 1) {
-      const bx = ((i * 980 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+      const bx = ((i * 980 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) + barnPhase;
       // Same maths as the far ridge, so the barn sits on the hill line.
       const wx = bx + shift;
       const by = 340 - Math.abs(Math.sin(wx * 0.006)) * 46 - Math.sin(wx * 0.013) * 46 * 0.35;
@@ -195,6 +235,27 @@ export function createRenderer(canvas) {
       context.fill();
       context.fillStyle = 'rgba(255,246,224,0.75)';
       context.fillRect(bx - 6, by - 22, 12, 22);
+    }
+    // One low shrub on the far ridge, riding the same 0.12 parallax
+    // as the barns so it stays planted on the hill line: the danger
+    // frame's left edge used to be empty midground — the farmer at
+    // the edge, then bare sky and hill all the way to the turkey —
+    // and this fills it without ever standing near the bird (it
+    // keeps 150+ px clear of the turkey in every staged frame, and
+    // in the title it sits off-screen). A low bush, not a tree: a
+    // trunk would poke up beside the turkey's head in the end frame,
+    // where this same shrub lands behind the freedom fence.
+    const shx = ((210 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+    if (shx > -40 && shx < FIELD.width + 40) {
+      const swx = shx + shift;
+      const sby = 340 - Math.abs(Math.sin(swx * 0.006)) * 46 - Math.sin(swx * 0.013) * 46 * 0.35;
+      ellipse(shx, sby - 8, 26, 12, stage.treeDark);
+      ellipse(shx - 13, sby - 12, 15, 9, stage.tree);
+      ellipse(shx + 14, sby - 11, 13, 8, stage.treeDark);
+      context.fillStyle = stage.leaf;
+      ellipse(shx - 8, sby - 16, 4, 3, stage.leaf);
+      ellipse(shx + 6, sby - 18, 4, 3, stage.leaf);
+      ellipse(shx + 16, sby - 14, 3.5, 2.5, stage.leaf);
     }
   }
 
@@ -639,7 +700,7 @@ export function createRenderer(canvas) {
   // under the instruction panel (its head already clears the panel
   // bottom by only 4 px). The scale pivots on the feet, so the bird
   // grows up and out while its feet stay on the ground line.
-  function drawTurkey(state, scale) {
+  function drawTurkey(state, scale, celebrate) {
     const p = state.player;
     const gy = FIELD.groundY;
     const air = p.y > 0;
@@ -652,7 +713,9 @@ export function createRenderer(canvas) {
     const bodyW = ducking ? 74 : 62;
     const blink = p.invulnerable > 0 && Math.floor(p.invulnerable * 10) % 2 === 0;
     if (blink || p.hiding > 0) return; // hidden behind the haystack, or blinking off
-    const pose = air ? 'jump' : ducking ? 'slide' : p.squash > 0.4 ? 'hurt' : 'run';
+    // A celebrating turkey leaps with its wings thrown wide even
+    // standing still — the escape frame's hero, mid-leap.
+    const pose = celebrate ? 'jump' : air ? 'jump' : ducking ? 'slide' : p.squash > 0.4 ? 'hurt' : 'run';
     const runBob = pose === 'run' ? Math.sin(p.runPhase * 2) * 3 : 0;
     const tilt = pose === 'jump' ? -0.16 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.06 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
     // A soft contact shadow grounds the turkey, even mid-jump.
@@ -941,7 +1004,7 @@ export function createRenderer(canvas) {
   // and a close-chase lunge with an angry shouting face. He is drawn
   // ~22% bigger than before, so the second lead still reads when the
   // contact sheet shrinks — a thin stick figure did not.
-  function drawFarmer(state) {
+  function drawFarmer(state, scale) {
     const f = state.farmer;
     const gap = f.gap;
     // The pursuer is always on screen, clamped to the left edge: the
@@ -957,8 +1020,16 @@ export function createRenderer(canvas) {
     const surging = f.surge > 0;
     if (gap > 22) {
       const label = `${Math.round(gap)}m`;
-      pill(fx - 20, gy - 214, 52, 26, 9, 'rgba(20,10,2,0.65)');
-      text(label, fx + 6, gy - 195, 17, '#ffd9d0', 'center', '800');
+      // The label never hugs the left edge: when the farmer is
+      // clamped to the edge his label used to start at x=14, which
+      // reads as clipped on the contact sheet. It now sits at least
+      // 24 px in, centred on the farmer when he is further right.
+      // Its height follows the farmer's scale, so it still floats
+      // the same distance above his hat when he is drawn smaller.
+      const labelCx = Math.max(fx + 6, 50);
+      const labelTop = gy - 134 * scale - 50;
+      pill(labelCx - 26, labelTop, 52, 26, 9, 'rgba(20,10,2,0.65)');
+      text(label, labelCx, labelTop + 19, 17, '#ffd9d0', 'center', '800');
     }
     // A pool of sunlit dirt under his feet, drawn before the shadow:
     // his dark boots used to melt into the dark track and whatever
@@ -985,7 +1056,7 @@ export function createRenderer(canvas) {
     // Lean into the chase — further forward the closer he gets; he
     // rocks back a little while winding up a throw.
     context.rotate(windup ? -0.06 : close ? 0.16 : 0.11);
-    context.scale(1.22, 1.22);
+    context.scale(scale, scale);
     // Speed lines streaming behind him while he surges after a hit.
     if (surging) {
       context.strokeStyle = 'rgba(255,246,224,0.55)';
@@ -1563,10 +1634,17 @@ export function createRenderer(canvas) {
   function drawField(state, screen) {
     const stage = STAGES[state.stage];
     // The turkey is drawn 12% bigger everywhere except the title,
-    // where the instruction panel caps how tall the bird can be.
-    const turkeyScale = screen === SCREEN_TITLE ? 1 : 1.12;
+    // where the instruction panel caps how tall the bird can be. On
+    // the escape screen it is 40% bigger and leaping with its wings
+    // thrown wide: the end frame's hero used to stand behind the
+    // white fence pickets, smaller than the farmer at the left edge.
+    // Bigger and mid-leap, it stands in front of the fence and owns
+    // the frame — and the farmer is drawn a touch smaller there, so
+    // he stops outshining the bird he failed to catch.
+    const escaped = screen === SCREEN_OVER && state.escaped;
+    const turkeyScale = screen === SCREEN_TITLE ? 1 : escaped ? 1.4 : 1.12;
     drawSky(state, stage);
-    drawHills(state, stage);
+    drawHills(state, stage, screen);
     drawGround(state, stage);
     const t = state.elapsed;
     // Pickups and hazards, in world order. Anything the turkey has
@@ -1590,8 +1668,8 @@ export function createRenderer(canvas) {
       else if (e.kind === KIND_KNIFE) drawKnife(sx, e.y, t);
       if (passed) context.restore();
     }
-    drawTurkey(state, turkeyScale);
-    drawFarmer(state);
+    drawTurkey(state, turkeyScale, escaped);
+    drawFarmer(state, escaped ? 1.0 : 1.22);
     // Haystacks stand in front, so a hiding turkey really disappears.
     // A passed haystack fades with the rest, for the same reason: the
     // farmer at the left edge must never hide behind one.
