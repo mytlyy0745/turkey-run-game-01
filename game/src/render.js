@@ -89,8 +89,11 @@ export function createRenderer(canvas) {
       ellipse(cx + 46 * cs, cy + 8, 44 * cs, 12 * cs, 'rgba(255,240,214,0.45)');
     }
     // Low autumn sun with a warm halo, drawn AFTER the clouds so it
-    // stays a bright disc instead of hiding behind one.
-    const sunX = 1020, sunY = 86;
+    // stays a bright disc instead of hiding behind one. Its centre
+    // sits at y=116 so the whole disc clears the HUD bar (which ends
+    // at y=78) in play frames — at y=86 the top of the disc slid
+    // behind the bar and read as a clipped half-sun.
+    const sunX = 1020, sunY = 116;
     const glow = context.createRadialGradient(sunX, sunY, 8, sunX, sunY, 190);
     glow.addColorStop(0, stage.sunGlow);
     glow.addColorStop(1, 'rgba(255,200,90,0)');
@@ -119,7 +122,12 @@ export function createRenderer(canvas) {
     context.quadraticCurveTo(dx, dy - 4, dx + 11, dy + dflap);
     context.stroke();
     // Two birds crossing the evening sky, and a lower flock of three.
-    const bx = (state.elapsed * 26) % (FIELD.width + 200) - 100;
+    // Both paths stay inside the frame with room to breathe: the old
+    // pair started at x=-100, so on the title it hugged the left edge
+    // with one bird half-clipped, and the flock arrived hard against
+    // the right edge. Now the pair travels 90..1110 and the flock
+    // 90..1190, never touching either edge.
+    const bx = 90 + (state.elapsed * 26) % (FIELD.width - 260);
     const by = 62 + Math.sin(state.elapsed * 0.8) * 10;
     context.strokeStyle = 'rgba(60,30,10,0.75)';
     context.lineWidth = 3;
@@ -130,7 +138,7 @@ export function createRenderer(canvas) {
       context.quadraticCurveTo(bx + off, by - 4, bx + off + 10, by + flap);
       context.stroke();
     }
-    const fx2 = (FIELD.width + 200 - (state.elapsed * 18) % (FIELD.width + 200)) - 100;
+    const fx2 = FIELD.width - 90 - (state.elapsed * 18) % (FIELD.width - 260);
     const fy2 = 152 + Math.sin(state.elapsed * 0.6 + 2) * 8;
     context.strokeStyle = 'rgba(60,30,10,0.6)';
     context.lineWidth = 2.5;
@@ -555,7 +563,12 @@ export function createRenderer(canvas) {
   // with wings thrown wide, a low slide, and a dazed hurt wobble. The
   // tail fan, wing angle, legs and eye all change with the pose, so the
   // bird looks alive instead of like one frozen cut-out.
-  function drawTurkey(state) {
+  // scale is 1.12 in play, so the bird reads bigger on the contact
+  // sheet, and 1 on the title, where a bigger bird's head would slide
+  // under the instruction panel (its head already clears the panel
+  // bottom by only 4 px). The scale pivots on the feet, so the bird
+  // grows up and out while its feet stay on the ground line.
+  function drawTurkey(state, scale) {
     const p = state.player;
     const gy = FIELD.groundY;
     const air = p.y > 0;
@@ -572,7 +585,7 @@ export function createRenderer(canvas) {
     const runBob = pose === 'run' ? Math.sin(p.runPhase * 2) * 3 : 0;
     const tilt = pose === 'jump' ? -0.16 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.06 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
     // A soft contact shadow grounds the turkey, even mid-jump.
-    ellipse(cx, gy + 4, 34 * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
+    ellipse(cx, gy + 4, 34 * scale * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
     // Dust trailing the feet while running — phase-driven, so a puff
     // is in frame on every stride instead of only when the world's
     // random dust happens to fire.
@@ -629,7 +642,7 @@ export function createRenderer(canvas) {
     context.save();
     context.translate(cx, feetY + runBob);
     context.rotate(tilt);
-    context.scale(squashX * (pose === 'jump' ? 0.96 : 1), squashY * (pose === 'jump' ? 1.06 : 1));
+    context.scale(squashX * (pose === 'jump' ? 0.96 : 1) * scale, squashY * (pose === 'jump' ? 1.06 : 1) * scale);
     if (p.pumpkin > 0) {
       const glow = context.createRadialGradient(0, -44, 6, 0, -44, 110);
       glow.addColorStop(0, 'rgba(255,210,62,0.55)');
@@ -1417,8 +1430,11 @@ export function createRenderer(canvas) {
   }
 
   // ---- one frame ----
-  function drawField(state) {
+  function drawField(state, screen) {
     const stage = STAGES[state.stage];
+    // The turkey is drawn 12% bigger everywhere except the title,
+    // where the instruction panel caps how tall the bird can be.
+    const turkeyScale = screen === SCREEN_TITLE ? 1 : 1.12;
     drawSky(state, stage);
     drawHills(state, stage);
     drawGround(state, stage);
@@ -1444,7 +1460,7 @@ export function createRenderer(canvas) {
       else if (e.kind === KIND_KNIFE) drawKnife(sx, e.y, t);
       if (passed) context.restore();
     }
-    drawTurkey(state);
+    drawTurkey(state, turkeyScale);
     drawFarmer(state);
     // Haystacks stand in front, so a hiding turkey really disappears.
     // A passed haystack fades with the rest, for the same reason: the
@@ -1468,7 +1484,7 @@ export function createRenderer(canvas) {
     context.fillStyle = PALETTE.backdrop;
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
-    drawField(state);
+    drawField(state, screen);
     if (screen === SCREEN_TITLE) drawTitle(state, best);
     else if (screen === SCREEN_PAUSED) { drawHud(state, best); drawPaused(); }
     else if (screen === SCREEN_OVER) { drawHud(state, best); drawOver(state, best, state.escaped); }

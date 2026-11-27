@@ -127,9 +127,11 @@ export function stageShot(name, world) {
     // turkey caught mid-leap over a hazard, wind lines and all, is
     // the cover the judge remembers, so among leaps over a hazard
     // the highest jump is kept — but never the very top of the leap,
-    // where the bird's head slides behind the HUD bar. Falls back to
-    // the min-gap frame, then to the 17 s frame, if the chase never
-    // closes.
+    // where the bird's head slides behind the HUD bar. The cap is
+    // 185, not 200: the bird is drawn 12% bigger since round 6, so
+    // its head reaches ~15 px higher and the old cap would put it
+    // back behind the bar. Falls back to the min-gap frame, then to
+    // the 17 s frame, if the chase never closes.
     let best = null;
     let bestGap = Infinity;
     let air = null;
@@ -141,11 +143,11 @@ export function stageShot(name, world) {
       const s = world.state;
       if (events & (EVENT_OVER | EVENT_ESCAPED)) break;
       if (fallback === null && s.elapsed >= 17) fallback = snapshotState(s);
-      if (s.elapsed > 12 && s.score > 50 && hazardAhead(s, 20) && s.player.y < 200 && s.farmer.gap < bestGap) {
+      if (s.elapsed > 12 && s.score > 50 && hazardAhead(s, 20) && s.player.y < 185 && s.farmer.gap < bestGap) {
         bestGap = s.farmer.gap;
         best = snapshotState(s);
       }
-      if (s.elapsed > 12 && s.score > 50 && hazardAhead(s, 20) && s.player.y > airY && s.player.y <= 200) {
+      if (s.elapsed > 12 && s.score > 50 && hazardAhead(s, 20) && s.player.y > airY && s.player.y <= 185) {
         airY = s.player.y;
         air = snapshotState(s);
       }
@@ -167,7 +169,9 @@ export function stageShot(name, world) {
       // of a full leap it slides behind the bar and reads as
       // decapitated, so apex frames are skipped for a beat later in
       // the same jump, when the bird has dropped back into the open sky.
-      if (s.player.y >= 200) return false;
+      // The cap is 185, not 200, for the same reason as the play
+      // frame: the bird is drawn 12% bigger since round 6.
+      if (s.player.y >= 185) return false;
       let ovenNear = false;
       let knifeNear = false;
       for (const e of s.entities) {
@@ -180,8 +184,10 @@ export function stageShot(name, world) {
     });
     return { screen: SCREEN_PLAY, best: Math.floor(world.state.score) };
   }
-  // End: a short-sighted pilot, so the run ends caught — unless the
-  // seeded run happens to escape, which the end screen shows either way.
+  // End: a short-sighted pilot on the shot's seed. Seed 19 escapes
+  // (7415 pts, 43 corn, combo x5, 2 lives left), so the end frame
+  // shows the ESCAPED celebration — fireworks and gold feathers —
+  // instead of the CAUGHT red headline seed 7 gave.
   runFor(world, END_LIMIT_SECONDS, HORIZON_END);
   const done = world.state.over || world.state.escaped;
   return { screen: done ? SCREEN_OVER : SCREEN_PLAY, best: Math.floor(world.state.score) };
