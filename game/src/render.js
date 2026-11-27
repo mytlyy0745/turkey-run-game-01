@@ -132,6 +132,17 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(sunX, sunY, 36, 0, Math.PI * 2);
     context.fill();
+    // A warm rim around the disc: on the pale woods sky the pale sun
+    // used to wash out into a faint blob (disc #fff8d0 on sky
+    // #bfe3a1, barely any contrast), and on the farmyard orange it
+    // was only the halo holding it together. The rim defines the
+    // disc in every stage at contact-sheet size, without moving the
+    // sun or touching the HUD.
+    context.strokeStyle = 'rgba(255,140,30,0.55)';
+    context.lineWidth = 4;
+    context.beginPath();
+    context.arc(sunX, sunY, 36, 0, Math.PI * 2);
+    context.stroke();
     // The top-right corner by the sun used to sit empty, so a soft
     // high cloud is anchored there, bobbing gently instead of
     // crossing the whole sky, with one small bird gliding below it
@@ -425,12 +436,26 @@ export function createRenderer(canvas) {
     context.arc(x, gy - 20 * s, 20 * s, Math.PI, 0);
     context.closePath();
     context.fill();
+    // Straw reads as horizontal bands across the dome, not vertical
+    // bars: the old five vertical strokes made the bale read as an
+    // upturned wire basket (in the danger frame two of them side by
+    // side looked like cages). Two curved bands plus short diagonal
+    // tufts at the crown keep the hay texture without the cage grid.
     context.strokeStyle = '#b8892a';
     context.lineWidth = 2;
-    for (let i = -2; i <= 2; i += 1) {
+    for (const hy of [-30, -20, -11]) {
+      const half = Math.sqrt(Math.max(0, 1 - ((hy + 20) / 20) ** 2)) * 19 * s;
       context.beginPath();
-      context.moveTo(x + i * 9 * s, gy - 38 * s);
-      context.lineTo(x + i * 11 * s, gy - 4 * s);
+      context.moveTo(x - half, gy + hy * s);
+      context.quadraticCurveTo(x, gy + (hy - 4) * s, x + half, gy + hy * s);
+      context.stroke();
+    }
+    context.strokeStyle = '#e8c95a';
+    context.lineWidth = 2;
+    for (let i = -1; i <= 1; i += 1) {
+      context.beginPath();
+      context.moveTo(x + i * 8 * s, gy - 38 * s);
+      context.lineTo(x + i * 10 * s, gy - 30 * s);
       context.stroke();
     }
   }
@@ -579,6 +604,15 @@ export function createRenderer(canvas) {
     context.closePath();
     context.fill();
     ellipse(sx + 8, cy, 11, 15, PALETTE.corn);
+    // A dark gold outline so the cob reads as a cob, not a floating
+    // yellow egg: at half size the un-outlined yellow ellipse (two of
+    // them side by side in the danger frame) had no edge against the
+    // pale ground and sky.
+    context.strokeStyle = '#b8860b';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.ellipse(sx + 8, cy, 11, 15, 0, 0, Math.PI * 2);
+    context.stroke();
     context.strokeStyle = '#d9a41e';
     context.lineWidth = 1.5;
     for (let i = -1; i <= 1; i += 1) {
@@ -1514,6 +1548,12 @@ export function createRenderer(canvas) {
     // needs the panel's bottom edge out of the way — the block moves
     // as one, so every gap inside it stays exactly as measured
     // before. The panel bottom is now y=268 (tightened in round 16).
+    // The kicker sits on a dark pill, like the subtitle below it:
+    // 22 px gold on bright orange sky was the thinnest, lowest-
+    // contrast text on the title, and at contact-sheet size it went
+    // faint. The pill is 440 px wide — the line measures ~400 px —
+    // and it clears the title below (top y=72, title cap starts ~y=78).
+    pill(420, 42, 440, 30, 12, 'rgba(20,8,2,0.45)');
     text('THANKSGIVING IS COMING…', 640, 64, 22, '#ffd23e', 'center', '900');
     context.save();
     context.shadowColor = 'rgba(255,122,30,0.8)';
@@ -1592,6 +1632,21 @@ export function createRenderer(canvas) {
       context.fillStyle = glow;
       context.fillRect(380, -40, 520, 320);
       for (const [bcx, bcy] of [[180, 150], [1100, 150]]) {
+        // Radial streaks from the burst centre first, then the dots
+        // on top: the old bursts were dots alone, and at half size
+        // they read as scattered bubbles floating over the headline.
+        // Eight short rays make each cluster read as one explosion.
+        for (let i = 0; i < 8; i += 1) {
+          const a = (i / 8) * Math.PI * 2 + state.elapsed * 0.25;
+          const r0 = 18 + (i % 2) * 8;
+          const r1 = 62 + ((i * 29) % 34);
+          context.strokeStyle = i % 2 === 0 ? 'rgba(255,210,62,0.75)' : 'rgba(255,246,224,0.7)';
+          context.lineWidth = 3;
+          context.beginPath();
+          context.moveTo(bcx + Math.cos(a) * r0, bcy + Math.sin(a) * r0 * 0.55);
+          context.lineTo(bcx + Math.cos(a) * r1, bcy + Math.sin(a) * r1 * 0.55);
+          context.stroke();
+        }
         for (let i = 0; i < 12; i += 1) {
           const a = (i / 12) * Math.PI * 2 + state.elapsed * 0.25;
           const r = 42 + ((i * 37) % 48);
