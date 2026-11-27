@@ -2,7 +2,7 @@
 
 ## 🔄 打磨第 14 轮（2026-11-27，备用建议 1+2 全做 + 标题火鸡放大探过回滚）
 
-- Commit：`（待填）`——本轮改 `game/src/render.js`（FREEDOM 标签左移 + 注释）、`game/src/shots.js`（play 注释）、`shots.json`（play 57→238）+ 2 张截图（1-play、4-end；2-start、3-danger 与 HEAD byte-identical，未变）；`main.ts`、`world.js`、`config.js`、`vendor/` 未动。render.js 经 2 次有效编辑（FREEDOM 移位 + 标题火鸡缩放，缩放后回滚）+ shots.js 1 次编辑改完，每处改完都单独重拍并目视/像素验证过。
+- Commit：`502a4f3`（`git ls-remote` 确认在 main 上）——本轮改 `game/src/render.js`（FREEDOM 标签左移 + 注释）、`game/src/shots.js`（play 注释）、`shots.json`（play 57→238）+ 2 张截图（1-play、4-end；2-start、3-danger 与 HEAD byte-identical，未变）；`main.ts`、`world.js`、`config.js`、`vendor/` 未动。render.js 经 2 次有效编辑（FREEDOM 移位 + 标题火鸡缩放，缩放后回滚）+ shots.js 1 次编辑改完，每处改完都单独重拍并目视/像素验证过。
 - **评审文件版本**：开工时 `JUDGE-REVIEW.md` 仍是第 9 轮版（两次评审，第 1 次 21:37、第 2 次 21:40，针对第 8/9 轮），无针对第 10/11/12/13 轮的新评审，本轮按任务书 HANDOFF 备用建议做。**`JUDGE-REVIEW.md` 本轮未修改、未提交**（评委的文件，工作区里仍是 untracked 状态；只对指定 5 个文件 `git add`，未动它）。
 - 画面改进（逐张截图验证过，另像素量过 FREEDOM 金字与标题火鸡头顶间隙，拼了一张 2×2 总览图模拟评委半尺寸视角检查）：
   1. **封面分数 445→1723（备用建议 1，本轮主攻，探针先行）**：探针（/tmp/probe-r14.mjs）把现行 airOven 选帧规则原样套到 seed 1–300：91 个种子有跃烤箱帧，其中 13 个同时满足“近刀（2D <300px）+ 连击 ≥2 + 无护盾环/无敌南瓜”。按分数排第一是 seed 238——1723 分/243m、COMBO x5、4 命、刀在农夫脚边拖着轨迹、两座烤箱火焰+标签完整。5 个候选全拍过逐张比：207（771 分、x5）刀更大但分数不到一半；143（698 分、x4）南瓜压住了 OVEN! 标签的感叹号、右缘 HIDE 被裁一半；133（755 分、x3）帧里根本没有可见的刀（最近的刀藏在 HUD 条后）；135（410 分、x4）刀虽近但分数比现封面还低。238 的代价：烤箱在脚的前右方而非正下方、刀离火鸡 223px（57 的是 68px、正在脚边），换来分数 3.9×、连击 2.5×，净收益为正。shots.json 里 play 种子 57→238。
