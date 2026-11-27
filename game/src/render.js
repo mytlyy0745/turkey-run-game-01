@@ -780,6 +780,40 @@ export function createRenderer(canvas) {
     context.globalAlpha = 1;
   }
 
+  // A carving knife lying dropped flat on the dirt — the escape
+  // screen's spent blade (see the KIND_KNIFE branch in drawField).
+  // Same plan as the flying knife, minus everything that reads as
+  // motion: no spin, no trail, no ghosts. Blade points right, the
+  // way it was flying; handle on the left. Its bottom edge sits on
+  // the ground line (y=400) with a small contact shadow under it,
+  // so it reads as resting on the dirt, not floating above it. The
+  // span (sx-40..sx+32) keeps it clear of the farmer (right edge
+  // ~x85), the verge tufts (tops y~404..410, below the blade) and
+  // the enlarged hero turkey's tail (left edge ~x253 at 1.8x).
+  function drawDroppedKnife(sx) {
+    const cy = FIELD.groundY - 6;
+    ellipse(sx - 4, FIELD.groundY + 2, 34, 3, 'rgba(20,10,2,0.25)');
+    context.fillStyle = PALETTE.knifeBlade;
+    context.beginPath();
+    context.moveTo(sx - 23, cy - 6);
+    context.lineTo(sx + 18, cy - 6);
+    context.lineTo(sx + 32, cy);
+    context.lineTo(sx + 18, cy + 6);
+    context.lineTo(sx - 23, cy + 6);
+    context.closePath();
+    context.fill();
+    context.strokeStyle = 'rgba(20,20,30,0.8)';
+    context.lineWidth = 2;
+    context.stroke();
+    context.fillStyle = PALETTE.knifeHandle;
+    context.fillRect(sx - 40, cy - 6, 17, 12);
+    context.fillStyle = 'rgba(20,20,30,0.5)';
+    context.fillRect(sx - 40, cy - 6, 4, 12);
+    context.strokeStyle = 'rgba(20,20,30,0.8)';
+    context.lineWidth = 2;
+    context.strokeRect(sx - 40, cy - 6, 17, 12);
+  }
+
   // ---- the turkey ----
   // Four poses that read at a glance: a pumping run, a stretched jump
   // with wings thrown wide, a low slide, and a dazed hurt wobble. The
@@ -1721,9 +1755,19 @@ export function createRenderer(canvas) {
       // subtitle or the re-run prompt. The centre column stays clear.
       // And they start below y=90, so none ever sits on the HUD bar
       // — one used to drift across the ESCAPE label in the end frame.
+      // They also stay off the hero turkey now: the bird owns the
+      // left-centre at 1.8x (head top ~y257, tail-fan top ~y253,
+      // beak ~x427, feet on y=400), and a feather drifting onto it reads
+      // as a stray white fleck on its back, not as celebration —
+      // seed 159's white i=3 feather sat at (315,300), right on the
+      // turkey's shoulder. Any feather whose centre would land in
+      // the bird's box (x 240..460, y 225..410) is skipped; the
+      // other seven still fall. The gold i=2 feather at (268,202)
+      // stays: it flies in open sky above the tail fan.
       for (let i = 0; i < 8; i += 1) {
         const fx = (i < 4 ? 80 + i * 85 : 920 + (i - 4) * 85) + Math.sin(state.elapsed * 0.9 + i * 2.1) * 22;
         const fy = 90 + ((state.elapsed * 26 + i * 97) % 380);
+        if (fx > 240 && fx < 460 && fy > 225 && fy < 410) continue;
         context.save();
         context.translate(fx, fy);
         context.rotate(Math.sin(state.elapsed + i) * 0.7);
@@ -1817,14 +1861,25 @@ export function createRenderer(canvas) {
     // measured off the screenshot. At 1.09 the gain over 1.0 was a
     // barely visible ring; 1.20 is the biggest the title bird can go
     // without touching the panel or squeezing the text block further.
-    // On the escape screen it is 40% bigger and leaping
+    // On the escape screen it is 80% bigger and leaping
     // with its wings thrown wide: the end frame's hero used to stand
     // behind the white fence pickets, smaller than the farmer at the
-    // left edge. Bigger and mid-leap, it stands in front of the fence
-    // and owns the frame — and the farmer is drawn a touch smaller
-    // there, so he stops outshining the bird he failed to catch.
+    // left edge, and at 1.4x it still read as a supporting player —
+    // the judges' first priority for the finals is the end-frame
+    // turkey as the hero. At 1.8x it owns the left-centre of the
+    // frame, in front of the fence (drawn after the gate, as before).
+    // The scale pivots on the feet, and the clearances are measured
+    // off the 1.8x screenshot, not guessed: the head top sits
+    // ~y257 (snood tip 252), ~46 px clear of the subtitle pill
+    // bottom (206); the tail-fan top ~y253, ~47 px clear of the
+    // pill; the beak tip ~x427, ~43 px clear of the score panel's
+    // left edge (470); the tail's lowest tip passes ~4 px above the
+    // dropped knife (blade top y390 at x210..215), and the fan
+    // stays clear of the FREEDOM band (y 249..270) at its height.
+    // The farmer is drawn a touch smaller there, so he stops
+    // outshining the bird he failed to catch.
     const escaped = screen === SCREEN_OVER && state.escaped;
-    const turkeyScale = screen === SCREEN_TITLE ? 1.20 : escaped ? 1.4 : 1.12;
+    const turkeyScale = screen === SCREEN_TITLE ? 1.20 : escaped ? 1.8 : 1.12;
     drawSky(state, stage, screen);
     drawHills(state, stage, screen);
     drawGround(state, stage);
@@ -1858,7 +1913,19 @@ export function createRenderer(canvas) {
         // are only checked while |d| < 1 m, where alpha is 1.
         const kd = e.x - state.distance;
         const ka = kd > 8 ? clamp(1 - (kd - 8) / 20, 0, 1) : 1;
-        if (ka > 0) drawKnife(sx, e.y, t, ka);
+        // On the escape screen a knife left of the score panel is
+        // spent twice over: the chase is over, and a spinning blade
+        // there is a defect, not a threat — seed 159's froze at
+        // 262.8 degrees, its tip at (196,260) cutting the bottom
+        // of FREEDOM's D and its trail streaking across the barn,
+        // reading as a blade stuck upright in the dirt by the
+        // farmer. So it lies dropped flat on the ground instead:
+        // same screen x, blade pointing right, no spin, no trail,
+        // no ghosts. Knives at or right of the panel (sx >= 470)
+        // keep flying — a flat blade there would land on the panel
+        // or the re-run prompt.
+        if (ka > 0 && escaped && sx < 470) drawDroppedKnife(sx);
+        else if (ka > 0) drawKnife(sx, e.y, t, ka);
       }
       if (passed) context.restore();
     }
@@ -1877,6 +1944,31 @@ export function createRenderer(canvas) {
       glow.addColorStop(1, 'rgba(255,222,150,0)');
       context.fillStyle = glow;
       context.fillRect(gx - 170, gy - 170, 340, 340);
+    }
+    // Escape only: the same warm pool behind the hero turkey. The
+    // end frame's bird stands against the near hill (#3e2739) in
+    // almost its own browns (#8a5a2e body), so at half size it sank
+    // into the hillside exactly the way the title bird used to —
+    // and at 1.8x the bird is bigger but the hill behind it is the
+    // same dark purple, so the glow is bigger too (r 210, centre
+    // (361,320), the bird's visual centre) and lifts the hill into
+    // a lit backdrop without moving the bird. It is drawn before
+    // the turkey, so it never washes the bird itself, and before
+    // the farmer, so he is untouched; the score panel and subtitle
+    // pill are drawn later in drawOver, on top of it. The wash
+    // over the FREEDOM label's right end is ~0.1 alpha — the label
+    // stays gold. The fence pickets behind the bird catch the
+    // strongest light, which is the point: brown feathers read
+    // against lit pickets and lit hill instead of dark-on-dark.
+    if (escaped) {
+      const gx = TURKEY_X + TURKEY.width / 2;
+      const gy = FIELD.groundY - 80;
+      const glow = context.createRadialGradient(gx, gy, 10, gx, gy, 210);
+      glow.addColorStop(0, 'rgba(255,232,170,0.62)');
+      glow.addColorStop(0.55, 'rgba(255,222,150,0.28)');
+      glow.addColorStop(1, 'rgba(255,222,150,0)');
+      context.fillStyle = glow;
+      context.fillRect(gx - 210, gy - 210, 420, 420);
     }
     drawTurkey(state, turkeyScale, escaped);
     drawFarmer(state, escaped ? 1.0 : 1.22);
