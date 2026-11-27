@@ -1923,6 +1923,19 @@ export function createRenderer(canvas) {
   // ---- one frame ----
   function drawField(state, screen) {
     const stage = STAGES[state.stage];
+    // Finals cover pass (colour temperature): the play frame and the
+    // title frame are both the farmyard (stage 0) in warm orange, so
+    // the top row of the contact sheet reads as one orange block
+    // twice. Only the PLAY screen's farmyard goes cool — sky toward
+    // riverbank blue, hills toward olive, ground toward khaki — so
+    // the cover reads as cool daylight against the title's warm
+    // sunset. The turkey, farmer, oven, trees, barn, sun and HUD
+    // keep their colours (only sky/ground/far-hill/grass keys are
+    // overridden; tree/leaf/sun/accent are not). Title (same stage,
+    // SCREEN_TITLE), danger (woods) and end (freedom fence) are
+    // untouched: the override is gated on screen === SCREEN_PLAY and
+    // stage === 0. It also applies in live play in the farmyard —
+    // the cover IS the play screen — which is the intended look.
     // The turkey is drawn 12% bigger everywhere, and 20% bigger on the
     // title: the whole title text block moved up 8 px in round 15
     // (panel bottom y=280), and in round 16 the panel was tightened
@@ -1950,9 +1963,16 @@ export function createRenderer(canvas) {
     // outshining the bird he failed to catch.
     const escaped = screen === SCREEN_OVER && state.escaped;
     const turkeyScale = screen === SCREEN_TITLE ? 1.20 : escaped ? 1.8 : 1.12;
-    drawSky(state, stage, screen);
-    drawHills(state, stage, screen);
-    drawGround(state, stage);
+    const playCool = screen === SCREEN_PLAY && state.stage === 0;
+    const view = playCool ? {
+      ...stage,
+      skyTop: '#aed6ea', skyMid: '#86b8d6', skyBot: '#6f9cc4',
+      hillFar: '#7d7a52', hillMid: '#655f42', hillNear: '#4e4a33',
+      ground: '#96703a', groundDark: '#77572a', grass: '#b9a24e',
+    } : stage;
+    drawSky(state, view, screen);
+    drawHills(state, view, screen);
+    drawGround(state, view);
     const t = state.elapsed;
     // Pickups and hazards, in world order. Anything the turkey has
     // already run past fades to a ghost of itself: a passed oven used
