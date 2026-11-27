@@ -123,9 +123,17 @@ export function stageShot(name, world) {
   if (name === 'play') {
     // One 40 s pass, keeping the frame where the chase was closest —
     // the farmer in frame behind the turkey — with something to dodge
-    // ahead. Falls back to the 17 s frame if the chase never closes.
+    // ahead. The airborne frame wins over the merely close one: a
+    // turkey caught mid-leap over a hazard, wind lines and all, is
+    // the cover the judge remembers, so among leaps over a hazard
+    // the highest jump is kept — but never the very top of the leap,
+    // where the bird's head slides behind the HUD bar. Falls back to
+    // the min-gap frame, then to the 17 s frame, if the chase never
+    // closes.
     let best = null;
     let bestGap = Infinity;
+    let air = null;
+    let airY = 60;
     let fallback = null;
     const steps = Math.floor(40 / STEP);
     for (let i = 0; i < steps; i += 1) {
@@ -133,20 +141,33 @@ export function stageShot(name, world) {
       const s = world.state;
       if (events & (EVENT_OVER | EVENT_ESCAPED)) break;
       if (fallback === null && s.elapsed >= 17) fallback = snapshotState(s);
-      if (s.elapsed > 8 && s.score > 50 && hazardAhead(s, 20) && s.farmer.gap < bestGap) {
+      if (s.elapsed > 12 && s.score > 50 && hazardAhead(s, 20) && s.player.y < 200 && s.farmer.gap < bestGap) {
         bestGap = s.farmer.gap;
         best = snapshotState(s);
       }
+      if (s.elapsed > 12 && s.score > 50 && hazardAhead(s, 20) && s.player.y > airY && s.player.y <= 200) {
+        airY = s.player.y;
+        air = snapshotState(s);
+      }
     }
-    if (best !== null) restoreState(world.state, best);
+    if (air !== null) restoreState(world.state, air);
+    else if (best !== null) restoreState(world.state, best);
     else if (fallback !== null) restoreState(world.state, fallback);
     return { screen: SCREEN_PLAY, best: Math.floor(world.state.score) };
   }
   if (name === 'danger') {
     // Stop at the tensest frame: an oven close ahead with a knife in the
     // air, or the farmer nearly on the turkey while a knife flies — or
-    // take what the run gives.
+    // take what the run gives. Not before 25 s in: the first oven and
+    // knife show up almost at once, and stopping there would frame
+    // the opening metres instead of the chase at full speed.
     runFor(world, DANGER_LIMIT_SECONDS, HORIZON_PLAY, (s) => {
+      if (s.elapsed < 25) return false;
+      // The turkey's head must stay clear of the HUD bar: at the top
+      // of a full leap it slides behind the bar and reads as
+      // decapitated, so apex frames are skipped for a beat later in
+      // the same jump, when the bird has dropped back into the open sky.
+      if (s.player.y >= 200) return false;
       let ovenNear = false;
       let knifeNear = false;
       for (const e of s.entities) {

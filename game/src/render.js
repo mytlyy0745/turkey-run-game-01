@@ -100,6 +100,24 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(sunX, sunY, 36, 0, Math.PI * 2);
     context.fill();
+    // The top-right corner by the sun used to sit empty, so a soft
+    // high cloud is anchored there, bobbing gently instead of
+    // crossing the whole sky, with one small bird gliding below it
+    // in the sun's glow — the corner reads as sky with life in it,
+    // not a blank patch, on the title and in every play frame.
+    const tx = 1175 + Math.sin(state.elapsed * 0.25) * 24;
+    ellipse(tx, 40, 58, 14, 'rgba(255,244,222,0.6)');
+    ellipse(tx - 38, 46, 34, 10, 'rgba(255,244,222,0.55)');
+    ellipse(tx + 40, 47, 36, 10, 'rgba(255,244,222,0.55)');
+    const dx = 1132 + Math.sin(state.elapsed * 0.3) * 18;
+    const dy = 128 + Math.sin(state.elapsed * 0.5) * 6;
+    const dflap = Math.sin(state.elapsed * 3.2) * 4;
+    context.strokeStyle = 'rgba(60,30,10,0.55)';
+    context.lineWidth = 2.5;
+    context.beginPath();
+    context.moveTo(dx - 11, dy + dflap);
+    context.quadraticCurveTo(dx, dy - 4, dx + 11, dy + dflap);
+    context.stroke();
     // Two birds crossing the evening sky, and a lower flock of three.
     const bx = (state.elapsed * 26) % (FIELD.width + 200) - 100;
     const by = 62 + Math.sin(state.elapsed * 0.8) * 10;
@@ -568,6 +586,35 @@ export function createRenderer(canvas) {
         context.arc(dx, gy - 2 - ph * 6, r, 0, Math.PI * 2);
         context.fill();
       }
+    }
+    // Two pale wind lines streaming behind the bird in the air — the
+    // cover turkey jumps, so its feet never kick up dust, and the
+    // frame used to read as a frozen cut-out. The streaks grow
+    // stronger the higher the jump, and a single loose feather rides
+    // the lower one, so the leap has motion even in a still frame.
+    if (pose === 'jump') {
+      const k = clamp(p.y / 120, 0.25, 1);
+      context.lineCap = 'round';
+      context.strokeStyle = `rgba(255,246,224,${0.44 * k})`;
+      context.lineWidth = 5;
+      context.beginPath();
+      context.moveTo(cx - 46, feetY - 36);
+      context.quadraticCurveTo(cx - 100, feetY - 54, cx - 152, feetY - 60);
+      context.stroke();
+      context.strokeStyle = `rgba(255,246,224,${0.32 * k})`;
+      context.lineWidth = 3.5;
+      context.beginPath();
+      context.moveTo(cx - 40, feetY - 12);
+      context.quadraticCurveTo(cx - 86, feetY - 28, cx - 130, feetY - 32);
+      context.stroke();
+      context.save();
+      context.translate(cx - 108, feetY - 46);
+      context.rotate(-0.5 + Math.sin(state.elapsed * 4) * 0.2);
+      context.fillStyle = `rgba(200,150,90,${0.55 * k})`;
+      context.beginPath();
+      context.ellipse(0, 0, 8, 4, 0, 0, Math.PI * 2);
+      context.fill();
+      context.restore();
     }
     // Landing dust ring: a flat ring that spreads and fades as the
     // squash settles, so a landing reads even in a still frame.
@@ -1054,17 +1101,33 @@ export function createRenderer(canvas) {
       if (!p.active) continue;
       const a = clamp(p.life / p.max, 0, 1);
       if (p.kind === 2) { // embers — a rising flame tongue
+        // An ember only burns above a live oven. If its oven was hit
+        // or smashed away, the flame dies with it instead of hanging
+        // in mid-air behind the farmer; a passed oven's embers fade
+        // with it at the same 0.28 the oven itself fades to.
+        let ovenAlpha = 0;
+        for (const e of state.entities) {
+          if (!e.active || e.kind !== KIND_OVEN) continue;
+          const osx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
+          const wPx = e.w * PX_PER_M;
+          if (p.x >= osx - 30 && p.x <= osx + wPx + 30) {
+            ovenAlpha = osx + wPx < TURKEY_X ? 0.28 : 1;
+            break;
+          }
+        }
+        if (ovenAlpha === 0) continue;
+        const ea = a * ovenAlpha;
         const h = p.size * (2.4 + (1 - a) * 1.8);
         const g = context.createRadialGradient(p.x, p.y, 0, p.x, p.y - h * 0.4, h);
-        g.addColorStop(0, `rgba(255,220,110,${0.85 * a})`);
-        g.addColorStop(0.5, `rgba(255,122,30,${0.6 * a})`);
+        g.addColorStop(0, `rgba(255,220,110,${0.85 * ea})`);
+        g.addColorStop(0.5, `rgba(255,122,30,${0.6 * ea})`);
         g.addColorStop(1, 'rgba(255,80,10,0)');
         context.fillStyle = g;
         context.beginPath();
         context.ellipse(p.x, p.y - h * 0.3, p.size * 1.2, h, 0, 0, Math.PI * 2);
         context.fill();
         // Bright core so the flame reads even at contact-sheet size.
-        context.fillStyle = `rgba(255,240,170,${0.9 * a})`;
+        context.fillStyle = `rgba(255,240,170,${0.9 * ea})`;
         context.beginPath();
         context.arc(p.x, p.y - h * 0.25, Math.max(2, p.size * 0.45), 0, Math.PI * 2);
         context.fill();

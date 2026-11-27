@@ -38,6 +38,20 @@ function overlaps(ax, aw, ay, ah, bx, bw, by, bh) {
 }
 
 export function createWorld(random) {
+  // Two random streams. Gameplay decisions — obstacle patterns,
+  // knife timing, spawn gaps — come from the injected generator, so
+  // the same seed and inputs always give the same run. Cosmetic
+  // effects — dust, embers, feather bursts, leaves — draw from a
+  // separate stream seeded from the first gameplay draw, so a visual
+  // fix can never silently reshuffle the run: before this split,
+  // gating ember spawns changed how many draws the particle code
+  // took and the autopilot escape rate jumped 3/20 to 8/20 with no
+  // tuning change at all. Visual work must never move the difficulty.
+  let pstate = (random() * 4294967296) >>> 0;
+  function prandom() {
+    pstate = (Math.imul(pstate, 1664525) + 1013904223) >>> 0;
+    return pstate / 4294967296;
+  }
   // One flat pool of entities; kinds tell the renderer what to draw.
   const entities = [];
   for (let i = 0; i < 96; i += 1) {
@@ -52,19 +66,19 @@ export function createWorld(random) {
   const scenery = [];
   for (let i = 0; i < 90; i += 1) {
     scenery.push({
-      at: (i / 90) * TOTAL_DISTANCE + random() * 14,
-      kind: Math.floor(random() * 5), // 0 tree, 1 fence, 2 pumpkin, 3 hay, 4 bush
-      seed: random(),
-      lane: random(),
+      at: (i / 90) * TOTAL_DISTANCE + prandom() * 14,
+      kind: Math.floor(prandom() * 5), // 0 tree, 1 fence, 2 pumpkin, 3 hay, 4 bush
+      seed: prandom(),
+      lane: prandom(),
     });
   }
   const clouds = [];
   for (let i = 0; i < 9; i += 1) {
-    clouds.push({ x: random() * FIELD.width, y: 26 + random() * 90, s: 0.6 + random() * 0.9, v: 4 + random() * 7 });
+    clouds.push({ x: prandom() * FIELD.width, y: 26 + prandom() * 90, s: 0.6 + prandom() * 0.9, v: 4 + prandom() * 7 });
   }
   const leaves = [];
   for (let i = 0; i < 26; i += 1) {
-    leaves.push({ x: random() * FIELD.width, y: random() * FIELD.height, s: 3 + random() * 4, v: 12 + random() * 22, ph: random() * 6.28 });
+    leaves.push({ x: prandom() * FIELD.width, y: prandom() * FIELD.height, s: 3 + prandom() * 4, v: 12 + prandom() * 22, ph: prandom() * 6.28 });
   }
 
   const player = {
@@ -120,23 +134,23 @@ export function createWorld(random) {
       const p = freeParticle();
       if (!p) return;
       p.active = true; p.kind = kind; p.x = x; p.y = y;
-      p.vx = (random() - 0.5) * spread - 30; p.vy = -random() * up - 20;
-      p.max = 0.5 + random() * 0.6; p.life = p.max; p.size = 3 + random() * 5;
+      p.vx = (prandom() - 0.5) * spread - 30; p.vy = -prandom() * up - 20;
+      p.max = 0.5 + prandom() * 0.6; p.life = p.max; p.size = 3 + prandom() * 5;
     }
   }
   function dust() {
     const p = freeParticle();
     if (!p) return;
     p.active = true; p.kind = 0; p.x = TURKEY_X + 6; p.y = FIELD.groundY - 4;
-    p.vx = -60 - random() * 40; p.vy = -14 - random() * 22;
-    p.max = 0.5; p.life = 0.5; p.size = 4 + random() * 5;
+    p.vx = -60 - prandom() * 40; p.vy = -14 - prandom() * 22;
+    p.max = 0.5; p.life = 0.5; p.size = 4 + prandom() * 5;
   }
   function ember(x, y) {
     const p = freeParticle();
     if (!p) return;
-    p.active = true; p.kind = 2; p.x = x + (random() - 0.5) * 60; p.y = y;
-    p.vx = (random() - 0.5) * 14; p.vy = -26 - random() * 40;
-    p.max = 0.7 + random() * 0.5; p.life = p.max; p.size = 2 + random() * 3;
+    p.active = true; p.kind = 2; p.x = x + (prandom() - 0.5) * 60; p.y = y;
+    p.vx = (prandom() - 0.5) * 14; p.vy = -26 - prandom() * 40;
+    p.max = 0.7 + prandom() * 0.5; p.life = p.max; p.size = 2 + prandom() * 3;
   }
 
   function spawnPattern(at) {
@@ -425,19 +439,32 @@ export function createWorld(random) {
 
     // --- particles: dust at the feet, embers over ovens, drifting leaves ---
     if (onGround && speed > 1 && player.hiding <= 0) {
-      if (random() < dt * 9) dust();
+      if (prandom() < dt * 9) dust();
     }
+    // Embers only rise from an oven the turkey has not passed yet: a
+    // passed oven's embers used to keep spawning and drift behind the
+    // farmer in mid-air, a little rootless flame with no oven under
+    // it. The centre-ahead test stops the spawn the moment the oven
+    // is under the turkey, and the embers already up scroll away
+    // with their oven (see the particle drift below) instead of
+    // hanging around after it has gone.
     for (const e of entities) {
-      if (e.active && e.kind === KIND_OVEN) {
+      if (e.active && e.kind === KIND_OVEN && e.x + e.w / 2 > state.distance) {
         const sx = px + (e.x - state.distance) * PX_PER_M;
-        if (sx > -100 && sx < FIELD.width + 100 && random() < dt * 14) ember(sx + e.w * PX_PER_M / 2, FIELD.groundY - 60);
+        if (sx > -100 && sx < FIELD.width + 100 && prandom() < dt * 14) ember(sx + e.w * PX_PER_M / 2, FIELD.groundY - 60);
       }
     }
     for (const p of particles) {
       if (!p.active) continue;
       p.life -= dt;
       if (p.life <= 0) { p.active = false; continue; }
-      p.x += p.vx * dt - speed * PX_PER_M * dt * 0.35;
+      // Dust and feathers trail behind at a third of world speed, so
+      // they hang in the air where the turkey was. Embers are pinned
+      // to their oven, so they scroll at full world speed and stay
+      // above it — at a third they lagged behind and floated over
+      // the farmer long after the oven had scrolled past.
+      const drift = p.kind === 2 ? 1 : 0.35;
+      p.x += p.vx * dt - speed * PX_PER_M * dt * drift;
       p.y += p.vy * dt;
       if (p.kind === 0) p.vy -= 8 * dt;
       else if (p.kind === 1) { p.vy += 260 * dt; p.vx *= 0.98; }
@@ -448,7 +475,7 @@ export function createWorld(random) {
     }
     for (const l of leaves) {
       l.y += l.v * dt; l.x += Math.sin(state.elapsed * 1.4 + l.ph) * 22 * dt - speed * 2 * dt;
-      if (l.y > FIELD.height) { l.y = -8; l.x = random() * FIELD.width; }
+      if (l.y > FIELD.height) { l.y = -8; l.x = prandom() * FIELD.width; }
       if (l.x < -10) l.x = FIELD.width + 8;
     }
     return events;
