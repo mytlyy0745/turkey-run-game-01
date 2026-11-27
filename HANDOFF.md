@@ -2,7 +2,7 @@
 
 ## 🔄 打磨第 1 轮（2026-11-27，画面优先 + 难度实测）
 
-- Commit：`（见本轮提交后 git log）`——本轮只改 `game/src/config.js`、`game/src/render.js`、4 张截图；`main.ts`、`shots.js`、`world.js`、`vendor/` 未动。
+- Commit：`39fc198490086dfefff102f393ec162e411f2a15`（`git ls-remote` 确认在 main 上）——本轮只改 `game/src/config.js`、`game/src/render.js`、4 张截图；`main.ts`、`shots.js`、`world.js`、`vendor/` 未动。
 - 画面改进（逐张截图验证过）：
   1. 天空中间带不再空：新增 3 朵中层大软云（y 150–226，随时间漂移）+ 下层 3 只鸟群；太阳改到云层之后画，不再被云遮成淡斑。
   2. 远山加深 + 三层山脊：各阶段 hillFar/hillNear 加深提饱和，新增 hillMid 中间脊（视差 0.18）；远脊上加红色谷仓剪影（与 ridge() 同一套数学，保证落在山脊线上），农场辨识度上来。
