@@ -376,19 +376,59 @@ export function createRenderer(canvas) {
   }
 
   // ---- hazards and pickups ----
-  function drawOven(sx, wPx) {
+  function drawOven(sx, wPx, t) {
     const gy = FIELD.groundY;
-    // Heat glow on the ground around it.
-    const glow = context.createRadialGradient(sx + wPx / 2, gy - 30, 6, sx + wPx / 2, gy - 30, 130);
-    glow.addColorStop(0, 'rgba(255,122,30,0.5)');
+    // Heat glow on the ground around it, plus a warm halo above the
+    // mouth: at contact-sheet size the oven used to read as a plain
+    // dark box with a thin wisp, so the glow now wraps the whole oven
+    // and the halo lifts it off the sky behind it.
+    const glow = context.createRadialGradient(sx + wPx / 2, gy - 30, 6, sx + wPx / 2, gy - 30, 165);
+    glow.addColorStop(0, 'rgba(255,122,30,0.62)');
     glow.addColorStop(1, 'rgba(255,122,30,0)');
     context.fillStyle = glow;
-    context.fillRect(sx - 90, gy - 120, wPx + 180, 130);
+    context.fillRect(sx - 110, gy - 120, wPx + 220, 130);
+    const halo = context.createRadialGradient(sx + wPx / 2, gy - 72, 4, sx + wPx / 2, gy - 72, 88);
+    halo.addColorStop(0, 'rgba(255,150,50,0.4)');
+    halo.addColorStop(1, 'rgba(255,150,50,0)');
+    context.fillStyle = halo;
+    context.fillRect(sx + wPx / 2 - 90, gy - 162, 180, 180);
     // Body, chimney and glowing door.
     context.fillStyle = PALETTE.ovenBody;
     pill(sx, gy - 56, wPx, 56, 8, PALETTE.ovenBody);
     context.fillStyle = '#2a2a33';
     context.fillRect(sx + wPx - 26, gy - 82, 18, 28);
+    // Three permanent flame tongues licking out of the oven's top,
+    // flickering with time so the oven reads as dangerous even in a
+    // still frame: the drifting ember particles alone were too thin
+    // and pale at half size. Tallest in the middle, swaying slightly.
+    const cx = sx + wPx / 2;
+    const tongues = [
+      { dx: -wPx * 0.26, h: 30, w: 13, ph: 0 },
+      { dx: 0, h: 46, w: 20, ph: 1.3 },
+      { dx: wPx * 0.26, h: 32, w: 13, ph: 2.6 },
+    ];
+    for (const tg of tongues) {
+      const flick = 1 + Math.sin(t * 11 + tg.ph + sx * 0.13) * 0.16;
+      const th = tg.h * flick;
+      const tx = cx + tg.dx + Math.sin(t * 7 + tg.ph) * 2;
+      const base = gy - 56;
+      const fg = context.createLinearGradient(0, base - th, 0, base);
+      fg.addColorStop(0, 'rgba(255,236,130,0.95)');
+      fg.addColorStop(0.55, 'rgba(255,150,40,0.9)');
+      fg.addColorStop(1, 'rgba(230,70,10,0.85)');
+      context.fillStyle = fg;
+      context.beginPath();
+      context.moveTo(tx - tg.w / 2, base);
+      context.quadraticCurveTo(tx - tg.w * 0.7, base - th * 0.55, tx, base - th);
+      context.quadraticCurveTo(tx + tg.w * 0.7, base - th * 0.55, tx + tg.w / 2, base);
+      context.closePath();
+      context.fill();
+      // Bright core so the middle tongue keeps a hot heart.
+      context.fillStyle = 'rgba(255,246,200,0.9)';
+      context.beginPath();
+      context.ellipse(tx, base - th * 0.3, tg.w * 0.22, th * 0.28, 0, 0, Math.PI * 2);
+      context.fill();
+    }
     const door = context.createLinearGradient(0, gy - 52, 0, gy - 8);
     door.addColorStop(0, '#ffd23e');
     door.addColorStop(0.5, '#ff7a1e');
@@ -415,8 +455,21 @@ export function createRenderer(canvas) {
     }
     // The warning label only for an oven still ahead: one the turkey
     // already passed sits behind the farmer and its label would
-    // collide with him.
-    if (sx > TURKEY_X) text('OVEN!', sx + wPx / 2, gy - 88, 20, '#ffb03a', 'center', '900');
+    // collide with him. It hangs BESIDE the oven, not above it: above
+    // was exactly where the jumping turkey's head and the flame
+    // tongues crossed it, so at contact-sheet size it read as a
+    // half-hidden orange smear. Beside the body, on a dark pill, it
+    // stays clear of the turkey's flight path and of the flames; near
+    // the right edge it flips to the oven's left side so it never
+    // clips off-screen.
+    if (sx > TURKEY_X) {
+      const lw = 80;
+      let lx = sx + wPx + 8;
+      if (lx + lw > FIELD.width - 8) lx = sx - lw - 8;
+      if (lx < 8) lx = 8;
+      pill(lx, gy - 62, lw, 30, 9, 'rgba(30,12,4,0.8)', 'rgba(255,176,58,0.65)');
+      text('OVEN!', lx + lw / 2, gy - 40, 20, '#ffb03a', 'center', '900');
+    }
   }
 
   function drawFenceObstacle(sx, wPx, h) {
@@ -1426,7 +1479,15 @@ export function createRenderer(canvas) {
     else if (score >= 1200) text('RANK: SO CLOSE — ALMOST A FREE BIRD', 700, 350, 18, '#ffd23e', 'center', '900');
     else text('RANK: SUNDAY ROAST', 700, 350, 18, '#ffd23e', 'center', '900');
     const blink = Math.floor(state.elapsed * 2) % 2 === 0;
-    if (blink) text('▶  PRESS SPACE OR CLICK TO RUN AGAIN  (R)', 700, 398, 22, '#fff6e0', 'center', '900');
+    // Dark pill under the re-run prompt and 8 px lower than before:
+    // it used to sit bare over the freedom fence pickets (and a
+    // passing knife could cross it), so at half size the white text
+    // thinned out against the pale fence. The pill ends at y=416,
+    // still 12 px clear of the stamina bar at y=428.
+    if (blink) {
+      pill(435, 384, 530, 32, 16, 'rgba(30,18,8,0.8)', 'rgba(255,210,62,0.5)');
+      text('▶  PRESS SPACE OR CLICK TO RUN AGAIN  (R)', 700, 407, 22, '#fff6e0', 'center', '900');
+    }
   }
 
   // ---- one frame ----
@@ -1451,7 +1512,7 @@ export function createRenderer(canvas) {
       const wPx = e.w * PX_PER_M;
       const passed = (e.kind === KIND_OVEN || e.kind === KIND_FENCE || e.kind === KIND_BALE) && sx + wPx < TURKEY_X;
       if (passed) { context.save(); context.globalAlpha = 0.28; }
-      if (e.kind === KIND_OVEN) drawOven(sx, wPx);
+      if (e.kind === KIND_OVEN) drawOven(sx, wPx, t);
       else if (e.kind === KIND_FENCE) drawFenceObstacle(sx, wPx, e.h);
       else if (e.kind === KIND_BALE) drawHayBale(sx, FIELD.groundY, e.w / 3.4);
       else if (e.kind === KIND_CORN) drawCorn(sx, e.y, t);
