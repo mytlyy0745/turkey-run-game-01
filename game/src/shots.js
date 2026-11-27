@@ -116,6 +116,11 @@ function hazardAhead(state, maxD) {
 // its OVEN! label in shot, not one sliding off the right edge. And no
 // oven just entering at the right edge either: a 26 px sliver of oven
 // plus a whole OVEN! label reads as a cropping accident, not a hazard.
+// The test is on the BODY, not the left edge: an oven at sx=1282
+// passed the old check (both old tests need sx < 1280) while its body
+// sat entirely off-screen and its flipped label floated in alone over
+// a pumpkin — that is exactly what seed 54's first pick showed, so
+// the rule is now "body fully inside the frame or the frame is out".
 // The probe counted 7 right-edge-clean leap frames in the 40 s pass
 // (out of 20 with an oven in frame), so the constraint still leaves a
 // max-height leap to pick from — it does not starve the cover.
@@ -124,9 +129,8 @@ function ovenInFrame(state) {
   for (const e of state.entities) {
     if (!e.active || e.kind !== KIND_OVEN) continue;
     const sx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
+    if (sx < 0 || sx + e.w * PX_PER_M > FIELD.width) return false;
     if (sx > 480 && sx < 1150) ok = true;
-    if (sx >= 1150 && sx < FIELD.width) return false;
-    if (sx < FIELD.width && sx + e.w * PX_PER_M > FIELD.width) return false;
   }
   return ok;
 }
@@ -141,6 +145,12 @@ export function stageShot(name, world) {
     return { screen: SCREEN_TITLE, best: 0 };
   }
   if (name === 'play') {
+    // The cover runs on seed 54 (not 7): on seed 7 the picked leap
+    // never has a knife near the bird or a combo — the only knife in
+    // that jump is 24 m out, faded to alpha 0.2 — while seed 54's
+    // picked leap (36.9 s, 668 pts, 313 m) has a knife 66 px from the
+    // turkey at head height and COMBO x4. Same pick rules, same
+    // autopilot; only the seed changed, so no gameplay code moved.
     // One 40 s pass, keeping the frame where the chase was closest —
     // the farmer in frame behind the turkey — with something to dodge
     // ahead. The airborne frame wins over the merely close one: a
@@ -218,10 +228,16 @@ export function stageShot(name, world) {
     });
     return { screen: SCREEN_PLAY, best: Math.floor(world.state.score) };
   }
-  // End: a short-sighted pilot on the shot's seed. Seed 19 escapes
-  // (7415 pts, 43 corn, combo x5, 2 lives left), so the end frame
+  // End: a short-sighted pilot on the shot's seed. Seed 146 escapes
+  // (6535 pts, 30 corn, combo x5, 2 lives left), so the end frame
   // shows the ESCAPED celebration — fireworks and gold feathers —
-  // instead of the CAUGHT red headline seed 7 gave.
+  // instead of the CAUGHT red headline seed 7 gave. Seed 146 was
+  // picked over seed 19 (7415 pts) because 19's final frame has a
+  // knife flying straight across the hero turkey's head, while 146
+  // is the highest-scoring escape (of 25 in seeds 1..150) with no
+  // knife anywhere near the hero's head — the only knives left are
+  // a low one skimming the ground left of the bird and one already
+  // faded out far to the right.
   runFor(world, END_LIMIT_SECONDS, HORIZON_END);
   const done = world.state.over || world.state.escaped;
   return { screen: done ? SCREEN_OVER : SCREEN_PLAY, best: Math.floor(world.state.score) };
