@@ -300,8 +300,10 @@ export function stageShot(name, world) {
   // grey bar straight across the white fence), no knife in the hero
   // head box, no feather-shield ring around the hero turkey, and the
   // re-run prompt blink on. Its one visible knife sits at sx=201,
-  // cy=292, left of the gate by the farmer — a threat still in the
-  // air, not a defect. Seed 320 scores higher (7550) but fails two
+  // left of the gate by the farmer — but it no longer flies: since
+  // the finals end-turkey pass it lies dropped flat on the ground
+  // (blade pointing right, no spin, no trail), a spent threat, not
+  // a defect. Seed 320 scores higher (7550) but fails two
   // counts: a shield ring circles the hero turkey and the prompt
   // blink is off. Seed 19 (7415 pts) still has a knife flying
   // straight across the hero turkey's head.
