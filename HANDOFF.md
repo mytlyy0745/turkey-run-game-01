@@ -2,7 +2,7 @@
 
 ## 🔄 打磨第 19 轮（2026-11-27，fresh-eyes：封面双鸟从 HUD 条后救出来 + 结束帧 E 字撞鸟回滚）
 
-- Commit：`TBD`（`git ls-remote` 确认在 main 上）——本轮只改 `game/src/render.js` + 3 张截图（1-play、2-start、3-danger；4-end 与 HEAD byte-identical，未变）；`main.ts`、`world.js`、`config.js`、`shots.js`、`shots.json`、`vendor/` 未动。render.js 经 4 次独立编辑改完（双鸟下移→drawSky 加 screen 参数→双鸟按画面分流→调用处传 screen），每处改完都重拍并目视/裁剪验证过。
+- Commit：`77d9c48`（`git ls-remote` 确认在 main 上）——本轮只改 `game/src/render.js` + 3 张截图（1-play、2-start、3-danger；4-end 与 HEAD byte-identical，未变）；`main.ts`、`world.js`、`config.js`、`shots.js`、`shots.json`、`vendor/` 未动。render.js 经 4 次独立编辑改完（双鸟下移→drawSky 加 screen 参数→双鸟按画面分流→调用处传 screen），每处改完都重拍并目视/裁剪验证过。
 - **评审文件版本**：开工时 `JUDGE-REVIEW.md` 仍是第 9 轮版（两次评审，第 1 次 21:37、第 2 次 21:40，针对第 8/9 轮），无针对第 10–18 轮的新评审，本轮按任务书 HANDOFF 备用建议 1+2+3 做（1 先量后动、2 不动、3 不动），另加 fresh-eyes 新发现的结束帧撞字问题。**`JUDGE-REVIEW.md` 本轮未修改、未提交**（评委的文件，工作区里仍是 untracked 状态；只对指定 6 个文件 `git add`，未动它）。
 - 画面改进（全部逐张截图验证过，另裁剪放大验证双鸟位置与结束帧 E 字、拼了一张 2×2 总览图缩到半尺寸检查）：
   1. **封面双鸟终于在 play 帧里看得见了（本轮主攻，备用建议 1，先量后动）**：度量证实 HANDOFF 的怀疑——双鸟 by=62±10，笔触跨 y 45–76，整只鸟落在 HUD 条的纵带里（条底 y=78，第 16 轮起不透明），play/danger 两帧里完全没有这双鸟，只有无 HUD 条的标题帧才看得到。改动：by 62→102（摆幅 10→7），笔触跨 y 82–113，最坏情况翼尖 y=82，离条底 4px；仍在火鸡头顶与中层云之上、开阔天空里。重拍验证：play 帧双鸟在太阳左侧 y~95 清晰可见（裁剪放大：两只干净的 V 形海鸥，无“人脸”回潮），danger 帧双鸟在太阳右侧 y~95–110 同样可见，标题帧双鸟下移到 y~95–110、仍在 TURKEY 大字左侧的开阔天空里，与 kicker 底板、大标题均无碰撞。半尺寸总览里 play 帧顶部多了一双鸟，天空更满。
