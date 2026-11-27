@@ -172,11 +172,16 @@ export function createRenderer(canvas) {
     ridge(state, 150, 38, 352, stage.hillMid, 0.18);
     ridge(state, 300, 30, 366, stage.hillNear, 0.25);
     // A red barn silhouette rides the far ridge — the farm reads at a
-    // glance even before any fence or pumpkin scrolls past.
+    // glance even before any fence or pumpkin scrolls past. The barns
+    // sit 150 px further left than the ridge maths alone would put
+    // them: at the old phase a barn landed right under the danger
+    // frame's flying knife, so the white trail crossed the barn's
+    // door and the blade cut across its roof. Shifted, the knife
+    // flies through open sky with ~90 px clear of the nearest barn.
     const scroll = stateScroll(state);
     const shift = (scroll * 0.12) % 640;
     for (let i = 0; i < 2; i += 1) {
-      const bx = ((i * 980 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 210;
+      const bx = ((i * 980 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
       // Same maths as the far ridge, so the barn sits on the hill line.
       const wx = bx + shift;
       const by = 340 - Math.abs(Math.sin(wx * 0.006)) * 46 - Math.sin(wx * 0.013) * 46 * 0.35;
@@ -1409,10 +1414,16 @@ export function createRenderer(canvas) {
     text('TURKEY RUN!', 640, 140, 88, '#fff6e0', 'center', '900');
     context.restore();
     text('Escape the farm. Dodge the oven. Outrun the farmer.', 640, 176, 24, '#ffe9b0', 'center', '700');
-    pill(250, 196, 780, 100, 16, PALETTE.panel, PALETTE.panelEdge);
-    text('↑ / SPACE — jump fences & ovens', 640, 226, 20, PALETTE.text, 'center', '700');
-    text('SHIFT — dash   •   ↓ near hay — hide   •   ↓ — duck high knives', 640, 254, 20, PALETTE.text, 'center', '700');
-    text('Corn = combo  •  Golden pumpkin = untouchable  •  Feather = shield', 640, 280, 19, PALETTE.muted, 'center', '700');
+    // The instruction panel sits 8 px higher than before (top y=188,
+    // bottom y=288): the turkey's head used to clear its bottom edge
+    // by only ~5 px — the tightest spot on the title frame, measured
+    // off the screenshot, not guessed. Now the head has ~13 px of
+    // breathing room, and the panel still clears the subtitle above
+    // it (whose descenders end ~y=181) by 7 px.
+    pill(250, 188, 780, 100, 16, PALETTE.panel, PALETTE.panelEdge);
+    text('↑ / SPACE — jump fences & ovens', 640, 218, 20, PALETTE.text, 'center', '700');
+    text('SHIFT — dash   •   ↓ near hay — hide   •   ↓ — duck high knives', 640, 246, 20, PALETTE.text, 'center', '700');
+    text('Corn = combo  •  Golden pumpkin = untouchable  •  Feather = shield', 640, 272, 19, PALETTE.muted, 'center', '700');
     if (best > 0) text(`BEST ESCAPE  ${best}`, 640, 322, 20, '#ffd23e', 'center', '900');
     const blink = Math.floor(state.elapsed * 2) % 2 === 0;
     if (blink) text('▶  PRESS SPACE OR CLICK TO RUN', 640, 362, 26, '#fff6e0', 'center', '900');
@@ -1495,6 +1506,29 @@ export function createRenderer(canvas) {
         context.stroke();
         context.restore();
       }
+      // A tuft of verge grass and a couple of wildflowers on the bare
+      // stretch between the farmer and the freedom fence: that patch
+      // of track used to sit empty while the cover's verge is dotted
+      // with grass and leaves, so the end frame now echoes the cover.
+      // Only on the escape — the fence is at a fixed screen x here
+      // (distance 1500), so the tufts can sit at fixed screen x too,
+      // clear of the stamina bar below (top y=428) and the SHIELD
+      // label to the left.
+      for (const [gx, gh, gc] of [[128, 15, '#d99a44'], [168, 18, '#4e3018'], [208, 14, '#d99a44'], [238, 12, '#d99a44']]) {
+        context.strokeStyle = gc;
+        context.lineWidth = 2.5;
+        context.beginPath();
+        context.moveTo(gx, 422);
+        context.lineTo(gx - 4, 422 - gh);
+        context.moveTo(gx, 422);
+        context.lineTo(gx, 422 - gh - 3);
+        context.moveTo(gx + 4, 422);
+        context.lineTo(gx + 6, 422 - gh + 2);
+        context.stroke();
+      }
+      ellipse(150, 420, 3, 3, '#e86a1e');
+      ellipse(196, 418, 3, 3, '#f2c14e');
+      ellipse(226, 421, 6, 3.5, '#e8a13a');
       text('ESCAPED!', 640, 132, 80, '#ffd23e', 'center', '900');
       text('The turkey made it past the freedom fence —', 640, 168, 22, PALETTE.text, 'center', '700');
       text('no Thanksgiving dinner tonight.', 640, 192, 22, PALETTE.text, 'center', '700');
