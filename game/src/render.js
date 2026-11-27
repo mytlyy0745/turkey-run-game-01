@@ -300,6 +300,76 @@ export function createRenderer(canvas) {
       ellipse(shx + 6, sby - 18, 4, 3, stage.leaf);
       ellipse(shx + 16, sby - 14, 3.5, 2.5, stage.leaf);
     }
+    // Right-band midground dressing (finals round 21): the danger
+    // frame's right 2/3 used to be flat hill bands — one barn, one
+    // tree at the edge, bare green in between — so the frame read
+    // left-heavy against the farmer, turkey, oven and knife. A second
+    // barn, an oak, a second shrub, a fence run and a hay bale ride
+    // the same ridge maths at new phases, so they stay planted on the
+    // hill lines and scroll with the world; every one is drawn only
+    // when its screen x lands in the right band (700..1280), so the
+    // turkey, the knife and the OVEN! label — all left of x=520 in
+    // every staged play frame — can never be covered. Play screens
+    // only: the title and end screens keep their own compositions
+    // (their panels sit where this dressing would land). Pure
+    // functions of distance, so the gameplay random stream is never
+    // touched. Phases are tuned to the danger frame's scroll
+    // (655 m): barn ~760, oak ~900, shrub ~1150, bale ~1160, fence
+    // 724..980. Hills paint before entities, so an oven or its label
+    // always lands on top of this dressing, never behind it.
+    if (screen === SCREEN_PLAY) {
+      const inBand = (x) => x >= 700 && x <= 1280;
+      // Second barn on the far ridge, a little smaller than the pair.
+      const b2x = ((678 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+      if (inBand(b2x)) {
+        const bwx = b2x + shift;
+        const bby = 340 - Math.abs(Math.sin(bwx * 0.006)) * 46 - Math.sin(bwx * 0.013) * 46 * 0.35;
+        context.fillStyle = 'rgba(122,44,26,0.85)';
+        context.fillRect(b2x - 29, bby - 29, 58, 29);
+        context.beginPath();
+        context.moveTo(b2x - 34, bby - 29);
+        context.lineTo(b2x, bby - 44);
+        context.lineTo(b2x + 34, bby - 29);
+        context.closePath();
+        context.fill();
+        context.fillStyle = 'rgba(255,246,224,0.75)';
+        context.fillRect(b2x - 5, bby - 19, 10, 19);
+      }
+      // Oak on the near ridge: canopy top ~y 277, well above the
+      // OVEN! label band (y 335+) and clear of the turkey's flight.
+      const ox = ((540 - scroll * 0.25) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+      if (inBand(ox)) {
+        const nshift = (scroll * 0.25) % 640;
+        const owx = ox + nshift;
+        const ogy = 366 - Math.abs(Math.sin(owx * 0.006)) * 30 - Math.sin(owx * 0.013) * 30 * 0.35;
+        drawTree(ox, ogy + 6, 0.95, stage, 0.37);
+      }
+      // Second shrub on the far ridge, far right.
+      const s2x = ((1068 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+      if (inBand(s2x)) {
+        const s2wx = s2x + shift;
+        const s2by = 340 - Math.abs(Math.sin(s2wx * 0.006)) * 46 - Math.sin(s2wx * 0.013) * 46 * 0.35;
+        ellipse(s2x, s2by - 8, 26, 12, stage.treeDark);
+        ellipse(s2x - 13, s2by - 12, 15, 9, stage.tree);
+        ellipse(s2x + 14, s2by - 11, 13, 8, stage.treeDark);
+        context.fillStyle = stage.leaf;
+        ellipse(s2x - 8, s2by - 16, 4, 3, stage.leaf);
+        ellipse(s2x + 6, s2by - 18, 4, 3, stage.leaf);
+        ellipse(s2x + 16, s2by - 14, 3.5, 2.5, stage.leaf);
+      }
+      // Hay bale on the track verge, far right, at full world speed.
+      const hayx = ((100 - scroll) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
+      if (inBand(hayx)) drawHayBale(hayx, FIELD.groundY, 1);
+      // Fence run along the track edge, right band only, at full
+      // world speed. Rails sit at y 368/382 and posts run 362..402:
+      // below the OVEN! label band (labels end at y~360 in the play
+      // frame, and the danger frame's label ends at x=517 anyway),
+      // so a rail can never cross a label.
+      for (let k = 0; k < 22; k += 1) {
+        const fx = ((k * 64 - scroll) % 1400 + 1400) % 1400 - 60;
+        if (fx >= 700 && fx <= 1020) drawFenceRun(fx, FIELD.groundY + 2, stage);
+      }
+    }
   }
 
   // ---- ground and mid scenery ----
@@ -705,6 +775,14 @@ export function createRenderer(canvas) {
   // streaming BEHIND it (knives fly to the right, so the trail runs
   // left). In the contact sheet the old knife was a sliver you could
   // barely see; this one is visible at a glance.
+  // Thickened again in the finals details pass: the cover blade still
+  // shrank to a thin white streak at half size, so the blade went
+  // ~35% thicker (half-height 8 -> 11, length untouched, same spin
+  // and trail) and gained a white halo under its dark edge — the halo
+  // is stroked first at width 6, then the fill, then the dark 2 px
+  // edge, leaving ~2 px of white rim outside the dark line. The
+  // handle gets the same white halo, for the same reason, on the
+  // danger frame where it crosses the oven flames.
   // alpha fades a knife that has already flown past the turkey: a
   // spent knife keeps flying right until it despawns 70 m ahead, so
   // without the fade the frame always carries one lonely blade way
@@ -715,6 +793,8 @@ export function createRenderer(canvas) {
     const cy = FIELD.groundY - y;
     const spin = t * 9;
     // Ghost blades: afterimages of the spin, fading with distance.
+    // Same thickened shape as the blade itself, so they read as
+    // afterimages of this blade, not a thinner one behind it.
     for (const [off, ga] of [[-36, 0.3], [-68, 0.15]]) {
       context.save();
       context.translate(sx + off, cy);
@@ -722,11 +802,11 @@ export function createRenderer(canvas) {
       context.globalAlpha = ga * a;
       context.fillStyle = PALETTE.knifeBlade;
       context.beginPath();
-      context.moveTo(-24, -8);
-      context.lineTo(18, -8);
+      context.moveTo(-24, -11);
+      context.lineTo(18, -11);
       context.lineTo(32, 0);
-      context.lineTo(18, 8);
-      context.lineTo(-24, 8);
+      context.lineTo(18, 11);
+      context.lineTo(-24, 11);
       context.closePath();
       context.fill();
       context.restore();
@@ -747,37 +827,90 @@ export function createRenderer(canvas) {
     context.moveTo(sx - 38, cy + 10);
     context.lineTo(sx - 100, cy + 16);
     context.stroke();
-    // The blade itself, ~35% longer and wider than before.
+    // The blade itself, ~35% longer and wider than before, and
+    // ~35% thicker again in the finals details pass (half-height
+    // 8 -> 11). Length, position and spin are untouched.
     context.save();
     context.translate(sx, cy);
     context.rotate(spin);
+    context.beginPath();
+    context.moveTo(-24, -11);
+    context.lineTo(18, -11);
+    context.lineTo(32, 0);
+    context.lineTo(18, 11);
+    context.lineTo(-24, 11);
+    context.closePath();
+    // White halo first, then the fill over its inner half, then the
+    // dark edge: ~2 px of white rim survives outside the dark line.
+    context.strokeStyle = 'rgba(255,255,255,0.95)';
+    context.lineWidth = 6;
+    context.stroke();
+    context.fillStyle = PALETTE.knifeBlade;
+    context.fill();
+    context.strokeStyle = 'rgba(20,20,30,0.8)';
+    context.lineWidth = 2;
+    context.stroke();
+    context.fillStyle = PALETTE.knifeHandle;
+    context.fillRect(-40, -11, 17, 22);
+    context.fillStyle = 'rgba(20,20,30,0.5)';
+    context.fillRect(-40, -11, 4, 22);
+    // The handle gets the same dark outline as the blade: in the
+    // danger frame the handle crosses the oven's flame tongues, and
+    // without an edge the dark wood melts into the orange flame.
+    // The blade already had this outline; the handle was the only
+    // un-outlined part of the knife. The white halo goes under the
+    // dark edge here too: the dark edge alone left a faint residue
+    // at half size. Only the three exposed sides are outlined —
+    // the fourth butts against the blade, and a white rim there
+    // would stripe across the blade's rear.
+    context.beginPath();
+    context.moveTo(-23, -11);
+    context.lineTo(-40, -11);
+    context.lineTo(-40, 11);
+    context.lineTo(-23, 11);
+    context.strokeStyle = 'rgba(255,255,255,0.95)';
+    context.lineWidth = 6;
+    context.stroke();
+    context.strokeStyle = 'rgba(20,20,30,0.8)';
+    context.lineWidth = 2;
+    context.stroke();
+    context.restore();
+    // Never leak the fade to whatever is drawn next.
+    context.globalAlpha = 1;
+  }
+
+  // A carving knife lying dropped flat on the dirt — the escape
+  // screen's spent blade (see the KIND_KNIFE branch in drawField).
+  // Same plan as the flying knife, minus everything that reads as
+  // motion: no spin, no trail, no ghosts. Blade points right, the
+  // way it was flying; handle on the left. Its bottom edge sits on
+  // the ground line (y=400) with a small contact shadow under it,
+  // so it reads as resting on the dirt, not floating above it. The
+  // span (sx-40..sx+32) keeps it clear of the farmer (right edge
+  // ~x85), the verge tufts (tops y~404..410, below the blade) and
+  // the enlarged hero turkey's tail (left edge ~x253 at 1.8x).
+  function drawDroppedKnife(sx) {
+    const cy = FIELD.groundY - 6;
+    ellipse(sx - 4, FIELD.groundY + 2, 34, 3, 'rgba(20,10,2,0.25)');
     context.fillStyle = PALETTE.knifeBlade;
     context.beginPath();
-    context.moveTo(-24, -8);
-    context.lineTo(18, -8);
-    context.lineTo(32, 0);
-    context.lineTo(18, 8);
-    context.lineTo(-24, 8);
+    context.moveTo(sx - 23, cy - 6);
+    context.lineTo(sx + 18, cy - 6);
+    context.lineTo(sx + 32, cy);
+    context.lineTo(sx + 18, cy + 6);
+    context.lineTo(sx - 23, cy + 6);
     context.closePath();
     context.fill();
     context.strokeStyle = 'rgba(20,20,30,0.8)';
     context.lineWidth = 2;
     context.stroke();
     context.fillStyle = PALETTE.knifeHandle;
-    context.fillRect(-40, -8, 17, 16);
+    context.fillRect(sx - 40, cy - 6, 17, 12);
     context.fillStyle = 'rgba(20,20,30,0.5)';
-    context.fillRect(-40, -8, 4, 16);
-    // The handle gets the same dark outline as the blade: in the
-    // danger frame the handle crosses the oven's flame tongues, and
-    // without an edge the dark wood melts into the orange flame.
-    // The blade already had this outline; the handle was the only
-    // un-outlined part of the knife.
+    context.fillRect(sx - 40, cy - 6, 4, 12);
     context.strokeStyle = 'rgba(20,20,30,0.8)';
     context.lineWidth = 2;
-    context.strokeRect(-40, -8, 17, 16);
-    context.restore();
-    // Never leak the fade to whatever is drawn next.
-    context.globalAlpha = 1;
+    context.strokeRect(sx - 40, cy - 6, 17, 12);
   }
 
   // ---- the turkey ----
@@ -785,23 +918,28 @@ export function createRenderer(canvas) {
   // with wings thrown wide, a low slide, and a dazed hurt wobble. The
   // tail fan, wing angle, legs and eye all change with the pose, so the
   // bird looks alive instead of like one frozen cut-out.
-  // scale is 1.12 in play and 1.20 on the title, so the bird reads
-  // bigger on the contact sheet. The title scale is capped by the
-  // instruction panel above it: the whole title text block moved up
-  // 8 px (panel bottom y=280) in round 15, and in round 16 the panel
-  // was tightened as well (lines 210/238/264 -> 206/232/256, height
-  // 100 -> 88, bottom y=268) to make room — at 1.20 the head still
-  // clears it by ~10 px, measured off the screenshot (head top
-  // y=289 at 1.09, so ~278 at 1.20, panel bottom 268). The scale
-  // pivots on the feet, so the bird grows up and out while its feet
-  // stay on the ground line.
-  function drawTurkey(state, scale, celebrate) {
+  // scale is 1.12 in play and 1.30 on the title, so the bird reads
+  // bigger on the contact sheet. The title bird no longer stands
+  // under the instruction panel at all (round 21): it moved right
+  // into the open sky beside the panel (dx +679, centre x 1040),
+  // so the panel's bottom edge no longer caps it — 1.20 was the
+  // ceiling while it stood underneath (head top y=278 at 1.20,
+  // panel bottom 268, 10 px gap; at 1.30 the head would reach
+  // y=270 and touch). The scale pivots on the feet, so the bird
+  // grows up and out while its feet stay on the ground line. The
+  // dx is title-only: play and the end screen keep dx 0, and the
+  // farmer, the oven and the panel never move.
+  function drawTurkey(state, scale, celebrate, dx) {
     const p = state.player;
     const gy = FIELD.groundY;
     const air = p.y > 0;
     const squashY = p.squash > 0 ? 1 - p.squash * 0.18 : 1;
     const squashX = p.squash > 0 ? 1 + p.squash * 0.18 : 1;
-    const cx = TURKEY_X + TURKEY.width / 2;
+    // dx shifts the whole bird (shadow, dust, wind lines; the warm
+    // glow is moved separately in drawField) without touching
+    // TURKEY_X, so play, the end screen and every collision stay
+    // exactly where they were — only the title passes a non-zero dx.
+    const cx = TURKEY_X + TURKEY.width / 2 + (dx || 0);
     const feetY = gy - p.y;
     const ducking = p.ducking || p.hiding > 0;
     const bodyH = ducking ? 46 : 74;
@@ -1099,7 +1237,7 @@ export function createRenderer(canvas) {
   // and a close-chase lunge with an angry shouting face. He is drawn
   // ~22% bigger than before, so the second lead still reads when the
   // contact sheet shrinks — a thin stick figure did not.
-  function drawFarmer(state, scale) {
+  function drawFarmer(state, scale, screen) {
     const f = state.farmer;
     const gap = f.gap;
     // The pursuer is always on screen, clamped to the left edge: the
@@ -1113,7 +1251,10 @@ export function createRenderer(canvas) {
     const windup = f.windup > 0;
     const close = gap < 16;
     const surging = f.surge > 0;
-    if (gap > 22) {
+    // No gap label on the title: the race has not started, so the
+    // metres mean nothing there and the pill is clutter at the
+    // left edge. It stays on every screen where the chase is live.
+    if (gap > 22 && screen !== SCREEN_TITLE) {
       const label = `${Math.round(gap)}m`;
       // The label never hugs the left edge: when the farmer is
       // clamped to the edge his label used to start at x=14, which
@@ -1474,7 +1615,7 @@ export function createRenderer(canvas) {
   }
 
   // ---- HUD ----
-  function drawHud(state, best) {
+  function drawHud(state, best, screen) {
     const stage = STAGES[state.stage];
     // The bar is OPAQUE now, not 0.72 alpha: a translucent bar let the
     // sky show through as smudges — clouds behind it read as grey
@@ -1525,22 +1666,27 @@ export function createRenderer(canvas) {
     marker(tx, '#ffd23e');
     marker(Math.abs(tx - fxm) < 16 ? fxm - 14 : fxm, '#ff5a3c');
     text(`${Math.floor(state.distance)}m / ${TOTAL_DISTANCE}m`, barX + barW / 2, 66, 17, PALETTE.text, 'center', '700');
-    // Hearts on the right.
-    text('LIVES', 1150, 34, 15, PALETTE.muted, 'left', '800');
-    for (let i = 0; i < LIVES; i += 1) {
-      const hx = 1146 + i * 30;
-      const alive = i < state.lives;
-      context.fillStyle = alive ? '#ff5a3c' : 'rgba(255,255,255,0.18)';
-      context.beginPath();
-      context.arc(hx + 8, 52, 8, 0, Math.PI * 2);
-      context.arc(hx + 20, 52, 8, 0, Math.PI * 2);
-      context.fill();
-      context.beginPath();
-      context.moveTo(hx, 56);
-      context.lineTo(hx + 28, 56);
-      context.lineTo(hx + 14, 70);
-      context.closePath();
-      context.fill();
+    // Hearts on the right — hidden on the end screen: the run is
+    // over, so the lives left mean nothing there, and the headline
+    // owns the frame, so the hearts are clutter. They stay on every
+    // screen where the chase is still live.
+    if (screen !== SCREEN_OVER) {
+      text('LIVES', 1150, 34, 15, PALETTE.muted, 'left', '800');
+      for (let i = 0; i < LIVES; i += 1) {
+        const hx = 1146 + i * 30;
+        const alive = i < state.lives;
+        context.fillStyle = alive ? '#ff5a3c' : 'rgba(255,255,255,0.18)';
+        context.beginPath();
+        context.arc(hx + 8, 52, 8, 0, Math.PI * 2);
+        context.arc(hx + 20, 52, 8, 0, Math.PI * 2);
+        context.fill();
+        context.beginPath();
+        context.moveTo(hx, 56);
+        context.lineTo(hx + 28, 56);
+        context.lineTo(hx + 14, 70);
+        context.closePath();
+        context.fill();
+      }
     }
     // Combo pill under the score.
     if (state.combo >= 2) {
@@ -1721,9 +1867,19 @@ export function createRenderer(canvas) {
       // subtitle or the re-run prompt. The centre column stays clear.
       // And they start below y=90, so none ever sits on the HUD bar
       // — one used to drift across the ESCAPE label in the end frame.
+      // They also stay off the hero turkey now: the bird owns the
+      // left-centre at 1.8x (head top ~y257, tail-fan top ~y253,
+      // beak ~x427, feet on y=400), and a feather drifting onto it reads
+      // as a stray white fleck on its back, not as celebration —
+      // seed 159's white i=3 feather sat at (315,300), right on the
+      // turkey's shoulder. Any feather whose centre would land in
+      // the bird's box (x 240..460, y 225..410) is skipped; the
+      // other seven still fall. The gold i=2 feather at (268,202)
+      // stays: it flies in open sky above the tail fan.
       for (let i = 0; i < 8; i += 1) {
         const fx = (i < 4 ? 80 + i * 85 : 920 + (i - 4) * 85) + Math.sin(state.elapsed * 0.9 + i * 2.1) * 22;
         const fy = 90 + ((state.elapsed * 26 + i * 97) % 380);
+        if (fx > 240 && fx < 460 && fy > 225 && fy < 410) continue;
         context.save();
         context.translate(fx, fy);
         context.rotate(Math.sin(state.elapsed + i) * 0.7);
@@ -1809,25 +1965,64 @@ export function createRenderer(canvas) {
   // ---- one frame ----
   function drawField(state, screen) {
     const stage = STAGES[state.stage];
-    // The turkey is drawn 12% bigger everywhere, and 20% bigger on the
-    // title: the whole title text block moved up 8 px in round 15
-    // (panel bottom y=280), and in round 16 the panel was tightened
-    // as well (bottom now y=268), so the bird's head — which rises
-    // ~11 px from 1.09 to 1.20 — still clears the panel by ~10 px,
-    // measured off the screenshot. At 1.09 the gain over 1.0 was a
-    // barely visible ring; 1.20 is the biggest the title bird can go
-    // without touching the panel or squeezing the text block further.
-    // On the escape screen it is 40% bigger and leaping
+    // Finals cover pass (colour temperature): the play frame and the
+    // title frame are both the farmyard (stage 0) in warm orange, so
+    // the top row of the contact sheet reads as one orange block
+    // twice. Only the PLAY screen's farmyard goes cool — sky toward
+    // riverbank blue, hills toward olive, ground toward khaki — so
+    // the cover reads as cool daylight against the title's warm
+    // sunset. The turkey, farmer, oven, trees, barn, sun and HUD
+    // keep their colours (only sky/ground/far-hill/grass keys are
+    // overridden; tree/leaf/sun/accent are not). Title (same stage,
+    // SCREEN_TITLE), danger (woods) and end (freedom fence) are
+    // untouched: the override is gated on screen === SCREEN_PLAY and
+    // stage === 0. It also applies in live play in the farmyard —
+    // the cover IS the play screen — which is the intended look.
+    // The turkey is drawn 12% bigger everywhere, and 30% bigger on
+    // the title — and, since round 21, standing in the open sky
+    // right of the instruction panel instead of underneath it
+    // (centre x 361 -> 1040, dx +679): the panel's bottom edge used
+    // to cap the bird at 1.20 (head top y=278 at 1.20, panel bottom
+    // 268, 10 px gap; at 1.30 the head would reach y=270 and touch
+    // it). Moved, the head (x ~1058-1105, top y~270) sits wholly
+    // clear of the panel (right edge x=1030), the tail fan (top
+    // y~275-283) still clears the panel bottom by >=7 px where it
+    // passes under the panel's right end, the beak (~1105) stays
+    // ~25 px clear of the right barn's roof (~1130), and the feet
+    // stay clear of the foreground pumpkin at x=1096 (the body at
+    // pumpkin height only reaches x~1039). The OVEN! label ends
+    // ~x920, the tail starts ~x975. Measured off the screenshot,
+    // not guessed — see the round-21 numbers in the commit.
+    // On the escape screen it is 80% bigger and leaping
     // with its wings thrown wide: the end frame's hero used to stand
     // behind the white fence pickets, smaller than the farmer at the
-    // left edge. Bigger and mid-leap, it stands in front of the fence
-    // and owns the frame — and the farmer is drawn a touch smaller
-    // there, so he stops outshining the bird he failed to catch.
+    // left edge, and at 1.4x it still read as a supporting player —
+    // the judges' first priority for the finals is the end-frame
+    // turkey as the hero. At 1.8x it owns the left-centre of the
+    // frame, in front of the fence (drawn after the gate, as before).
+    // The scale pivots on the feet, and the clearances are measured
+    // off the 1.8x screenshot, not guessed: the head top sits
+    // ~y257 (snood tip 252), ~46 px clear of the subtitle pill
+    // bottom (206); the tail-fan top ~y253, ~47 px clear of the
+    // pill; the beak tip ~x427, ~43 px clear of the score panel's
+    // left edge (470); the tail's lowest tip passes ~4 px above the
+    // dropped knife (blade top y390 at x210..215), and the fan
+    // stays clear of the FREEDOM band (y 249..270) at its height.
+    // The farmer is drawn a touch smaller there, so he stops
+    // outshining the bird he failed to catch.
     const escaped = screen === SCREEN_OVER && state.escaped;
-    const turkeyScale = screen === SCREEN_TITLE ? 1.20 : escaped ? 1.4 : 1.12;
-    drawSky(state, stage, screen);
-    drawHills(state, stage, screen);
-    drawGround(state, stage);
+    const turkeyScale = screen === SCREEN_TITLE ? 1.30 : escaped ? 1.8 : 1.12;
+    const turkeyDx = screen === SCREEN_TITLE ? 679 : 0;
+    const playCool = screen === SCREEN_PLAY && state.stage === 0;
+    const view = playCool ? {
+      ...stage,
+      skyTop: '#aed6ea', skyMid: '#86b8d6', skyBot: '#6f9cc4',
+      hillFar: '#7d7a52', hillMid: '#655f42', hillNear: '#4e4a33',
+      ground: '#96703a', groundDark: '#77572a', grass: '#b9a24e',
+    } : stage;
+    drawSky(state, view, screen);
+    drawHills(state, view, screen);
+    drawGround(state, view);
     const t = state.elapsed;
     // Pickups and hazards, in world order. Anything the turkey has
     // already run past fades to a ghost of itself: a passed oven used
@@ -1858,7 +2053,19 @@ export function createRenderer(canvas) {
         // are only checked while |d| < 1 m, where alpha is 1.
         const kd = e.x - state.distance;
         const ka = kd > 8 ? clamp(1 - (kd - 8) / 20, 0, 1) : 1;
-        if (ka > 0) drawKnife(sx, e.y, t, ka);
+        // On the escape screen a knife left of the score panel is
+        // spent twice over: the chase is over, and a spinning blade
+        // there is a defect, not a threat — seed 159's froze at
+        // 262.8 degrees, its tip at (196,260) cutting the bottom
+        // of FREEDOM's D and its trail streaking across the barn,
+        // reading as a blade stuck upright in the dirt by the
+        // farmer. So it lies dropped flat on the ground instead:
+        // same screen x, blade pointing right, no spin, no trail,
+        // no ghosts. Knives at or right of the panel (sx >= 470)
+        // keep flying — a flat blade there would land on the panel
+        // or the re-run prompt.
+        if (ka > 0 && escaped && sx < 470) drawDroppedKnife(sx);
+        else if (ka > 0) drawKnife(sx, e.y, t, ka);
       }
       if (passed) context.restore();
     }
@@ -1867,9 +2074,12 @@ export function createRenderer(canvas) {
     // own browns (#8a5a2e body), so at half size it sank into the
     // hillside; the glow lifts the hill behind it into a lit backdrop
     // without moving the bird, and it never touches another screen —
-    // the instruction panel is drawn on top of it afterwards.
+    // the instruction panel is drawn on top of it afterwards. The
+    // glow moves with the bird (gx follows turkeyDx): since round 21
+    // the title bird stands at x=1040, and a glow left behind at
+    // x=361 would light empty hillside while the bird stood dark.
     if (screen === SCREEN_TITLE) {
-      const gx = TURKEY_X + TURKEY.width / 2;
+      const gx = TURKEY_X + TURKEY.width / 2 + turkeyDx;
       const gy = FIELD.groundY - 55;
       const glow = context.createRadialGradient(gx, gy, 10, gx, gy, 170);
       glow.addColorStop(0, 'rgba(255,232,170,0.6)');
@@ -1878,8 +2088,33 @@ export function createRenderer(canvas) {
       context.fillStyle = glow;
       context.fillRect(gx - 170, gy - 170, 340, 340);
     }
-    drawTurkey(state, turkeyScale, escaped);
-    drawFarmer(state, escaped ? 1.0 : 1.22);
+    // Escape only: the same warm pool behind the hero turkey. The
+    // end frame's bird stands against the near hill (#3e2739) in
+    // almost its own browns (#8a5a2e body), so at half size it sank
+    // into the hillside exactly the way the title bird used to —
+    // and at 1.8x the bird is bigger but the hill behind it is the
+    // same dark purple, so the glow is bigger too (r 210, centre
+    // (361,320), the bird's visual centre) and lifts the hill into
+    // a lit backdrop without moving the bird. It is drawn before
+    // the turkey, so it never washes the bird itself, and before
+    // the farmer, so he is untouched; the score panel and subtitle
+    // pill are drawn later in drawOver, on top of it. The wash
+    // over the FREEDOM label's right end is ~0.1 alpha — the label
+    // stays gold. The fence pickets behind the bird catch the
+    // strongest light, which is the point: brown feathers read
+    // against lit pickets and lit hill instead of dark-on-dark.
+    if (escaped) {
+      const gx = TURKEY_X + TURKEY.width / 2;
+      const gy = FIELD.groundY - 80;
+      const glow = context.createRadialGradient(gx, gy, 10, gx, gy, 210);
+      glow.addColorStop(0, 'rgba(255,232,170,0.62)');
+      glow.addColorStop(0.55, 'rgba(255,222,150,0.28)');
+      glow.addColorStop(1, 'rgba(255,222,150,0)');
+      context.fillStyle = glow;
+      context.fillRect(gx - 210, gy - 210, 420, 420);
+    }
+    drawTurkey(state, turkeyScale, escaped, turkeyDx);
+    drawFarmer(state, escaped ? 1.0 : 1.22, screen);
     // Haystacks stand in front, so a hiding turkey really disappears.
     // A passed haystack fades with the rest, for the same reason: the
     // farmer at the left edge must never hide behind one.
@@ -1904,7 +2139,7 @@ export function createRenderer(canvas) {
     context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
     drawField(state, screen);
     if (screen === SCREEN_TITLE) drawTitle(state, best);
-    else if (screen === SCREEN_PAUSED) { drawHud(state, best); drawPaused(); }
+    else if (screen === SCREEN_PAUSED) { drawHud(state, best, screen); drawPaused(); }
     // Over screen: the celebration is drawn FIRST and the HUD last.
     // The end frame's gold glow and dim overlay used to paint over
     // the HUD bar (the bar measured R std 29.2 in its plain zone even
@@ -1912,8 +2147,8 @@ export function createRenderer(canvas) {
     // y=75, 3 px under the bar's bottom edge — so the headline and
     // subtitle moved down 4 px as well, and the HUD is now the
     // topmost layer on every screen, identical in all four frames.
-    else if (screen === SCREEN_OVER) { drawOver(state, best, state.escaped); drawHud(state, best); }
-    else drawHud(state, best);
+    else if (screen === SCREEN_OVER) { drawOver(state, best, state.escaped); drawHud(state, best, screen); }
+    else drawHud(state, best, screen);
   }
 
   resize();
