@@ -1,4 +1,16 @@
-# STATUS — turkey-run-game-01 "Turkey Run!" (v1 初版 + 打磨第 1 轮 + 打磨第 2 轮 + 打磨第 3 轮 + 打磨第 4 轮 + 打磨第 5 轮 + 打磨第 6 轮 + 打磨第 7 轮 + 打磨第 8 轮 + 打磨第 9 轮 + 打磨第 10 轮 + 打磨第 11 轮 + 打磨第 12 轮 + 打磨第 13 轮 + 打磨第 14 轮 + 打磨第 15 轮 + 打磨第 16 轮 + 打磨第 17 轮 + 打磨第 18 轮 + 打磨第 19 轮 + 打磨第 20 轮 + 复赛 Round 1）——已提交
+# STATUS — turkey-run-game-01 "Turkey Run!" (v1 初版 + 打磨第 1 轮 + 打磨第 2 轮 + 打磨第 3 轮 + 打磨第 4 轮 + 打磨第 5 轮 + 打磨第 6 轮 + 打磨第 7 轮 + 打磨第 8 轮 + 打磨第 9 轮 + 打磨第 10 轮 + 打磨第 11 轮 + 打磨第 12 轮 + 打磨第 13 轮 + 打磨第 14 轮 + 打磨第 15 轮 + 打磨第 16 轮 + 打磨第 17 轮 + 打磨第 18 轮 + 打磨第 19 轮 + 打磨第 20 轮 + 复赛 Round 1 + 复赛 Round 2）——已提交
+
+## ✅ 复赛 Round 2 已提交（2026-11-28 ~09:21 CST）
+
+- Submission id `01a21fbe-54ac-71cc-b85b-56448738e379`，claim code `AF-0S1A5-9D1XB-3PPBM-EH1VG`，标题 "Turkey Run!"，commit `818703d3fda58386aff541e7d4bfbf96b9a70225`（merge commit：finals/merged-r2 合并进 main，含 6 个打磨分支 feel / turkey-anim / hud-stage / visual / smooth / difficulty-audit（无代码改动）+ 4 张截图重拍 + dossier 注释精简），签名钱包 8U2d8h…，无参赛费。取代上一版 submission `01a21f76`（claim AF-YMP01…，commit 97bb110）。
+- 验证：stage `checked`（29 项检查 26 pass / 3 skip / 0 failed，与 R1 相同结构；thinking_reproduces 95.5%（3398/3556 行）、thinking_revised render.js 154 条写/改消息、thinking_in_window 全过；3 skip：sponsor_self_entry、thinking_on_task、thinking_fresh）。等待第 2 轮盲轮开判（2026-11-28 10:00 CST）；本版从第 2 轮（共 4 轮）计入。
+- 首次提交曾被拒：submission `01a21fbc`（claim AF-WCAX9…，同 commit 818703d）HTTP 422，`thinking_reproduces` 仅 10.8%——只含 8 个 R2 打磨 session 的 bundle 里，大部分代码算“读入”而非 agent 原创。修复：bundle 改含 R1 的 35 个 session + R2 的 8 个 = 43 个 session，本地 check 先过（95.5%）再重提；被拒那次不计入，R1 的 01a21f76 在重提通过前一直是最终作品。
+- Bundle `~/workspace/make-fun/turkey-finals2/turkey-r2-bundle-v2.tar.gz`（5,178,634 字节，sha256 45752a5d85444001f2353138c387672adf4f41351144072868bca4b2c8157a84）：43 session（35 个 R1 + 8 个 R2）+ 53 条 muse-usage 行；prompt-origin scheduled。教训：resubmit 的 bundle 必须含写出基础代码的旧 session，只含 polish session 一定过不了 thinking_reproduces。
+- 本轮改了什么（Li 08:31“提升游戏体验感”+ 08:38“提升画质和游戏流畅度”）：手感——跳跃输入缓冲（0.1s，input.js）、受击白闪 + 轻震屏、拾取金环 + 飘字（+N/GOLDEN!/SHIELD!）、连击弹跳（x5 金色）、落地挤压 + 落地尘；火鸡动画——翅膀加大加亮（跳跃后掠）、尾扇加大幅、双腿弯膝分段、暖色光晕 + 深色描边与背景分离；农夫饱和度降一档（不再是每张最饱和的形象）；HUD——4-end 的 `32m` pill 修掉、封面刀加 3 条白色运动线（构图紧张感，不动种子/位置）、底部 HUD 字 14→16px；画质——光晕方形硬边修掉（太阳/烤箱/烟花渐变矩形盖满半径）、太阳改径向渐变盘、云加暖底影、山脊雾化、地面光斑 + 前景草层、接触阴影、粒子质量（尘土柔边、余烬拉长、落叶双色、烟花金晕）；流畅度——渐变全缓存、辉光改预渲染精灵、粒子每帧上限 100、渲染插值（120Hz 平滑、60Hz 输出不变）、防螺旋上限每帧 5 步。难度审计结论：不动数值——三组调参实验全被否决（只改了随机流消耗时序，无真实改善）；实测基线 base 3/20、strong 5/20 不变。
+- 评委共识（复评 vs R1，vs 前 20 名）：Judge A 0.42→0.44（+2pp）、Judge B 48%→50%（+2pp）、Judge C ~47%→~50%（+3pp），中位数约 +2–3pp，三位均建议提交。诚实说明：三位评委一致指出，本轮最重的手感与流畅度工作在静态截图上几乎不可见（评委只看截图 + 大纲，不实际玩游戏），只有前 3 名的人工实机审核才会触到；真正进入评委视野的是火鸡动画、农夫降饱和、32m pill 修掉、光晕/地面等画质小项。详见 ~/workspace/make-fun/turkey-finals2/JUDGE-A-R2-RESCORE.md、JUDGE-B-R2-RESCORE.md、JUDGE-C-R2-RESCORE.md。
+- QA 复评结论：9/9 全过、无回归（决定性 byte-identical、门槛全过、实测 base 3/20 / strong 5/20 与基线逐种子相同、0 报错/0 外部请求、4 张截图重拍验证）。注意：dossier 文本 163,210/163,840 字节，只剩 630 字节余量——下一轮加大幅渲染内容前必须先量余量。详见 ~/workspace/make-fun/turkey-finals2/QA-R2-RESCORE.md。
+- 实机视频：`videos/turkey-run-R2-818703d.mp4`（116 秒，1280×480，24fps，H.264，~21.9 MB；与 R1 视频同种子 37 强 autopilot：标题 2s → 农场 → 树林 → 河边 → CAUGHT 973m/3497 分，22 玉米、连击 x5、躲刀 15 次；确定性逐帧步进录制，0 console 报错、无掉帧）。
+- 盲轮：本版从第 2 轮（共 4 轮）计入，截止 2026-11-28 10:00 CST；比赛截止 2026-11-29 10:00 CST，结果 due 2026-12-15。
 
 ## ✅ 复赛 Round 1 已提交（2026-11-28 ~08:03 CST）
 
