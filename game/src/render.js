@@ -914,27 +914,15 @@ export function createRenderer(canvas) {
   }
 
   // ---- the turkey ----
-  // Four poses that read at a glance: a pumping run, a stretched jump
-  // with wings thrown wide, a low slide, and a dazed hurt wobble. The
-  // tail fan, wing angle, legs and eye all change with the pose, so the
-  // bird looks alive instead of like one frozen cut-out.
-  // scale is 1.12 in play and 1.30 on the title, so the bird reads
-  // bigger on the contact sheet. The title bird no longer stands
-  // under the instruction panel at all (round 21): it moved right
-  // into the open sky beside the panel (dx +679, centre x 1040),
-  // so the panel's bottom edge no longer caps it — 1.20 was the
-  // ceiling while it stood underneath (head top y=278 at 1.20,
-  // panel bottom 268, 10 px gap; at 1.30 the head would reach
-  // y=270 and touch). The scale pivots on the feet, so the bird
-  // grows up and out while its feet stay on the ground line. The
-  // dx is title-only: play and the end screen keep dx 0, and the
-  // farmer, the oven and the panel never move.
+  // Four poses: pumping run, stretched jump, low slide, dazed hurt.
+  // Tail, wings, legs and eye change with the pose; scale pivots on
+  // the feet (1.12 play, 1.30 title, dx +679 title-only, centre 1040).
   function drawTurkey(state, scale, celebrate, dx) {
     const p = state.player;
     const gy = FIELD.groundY;
     const air = p.y > 0;
-    const squashY = p.squash > 0 ? 1 - p.squash * 0.18 : 1;
-    const squashX = p.squash > 0 ? 1 + p.squash * 0.18 : 1;
+    const squashY = p.squash > 0 ? 1 - p.squash * 0.22 : 1;
+    const squashX = p.squash > 0 ? 1 + p.squash * 0.22 : 1;
     // dx shifts the whole bird (shadow, dust, wind lines; the warm
     // glow is moved separately in drawField) without touching
     // TURKEY_X, so play, the end screen and every collision stay
@@ -950,9 +938,17 @@ export function createRenderer(canvas) {
     // standing still — the escape frame's hero, mid-leap.
     const pose = celebrate ? 'jump' : air ? 'jump' : ducking ? 'slide' : p.squash > 0.4 ? 'hurt' : 'run';
     const runBob = pose === 'run' ? Math.sin(p.runPhase * 2) * 3 : 0;
-    const tilt = pose === 'jump' ? -0.16 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.06 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
+    const tilt = pose === 'jump' ? -0.16 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.1 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
     // A soft contact shadow grounds the turkey, even mid-jump.
     ellipse(cx, gy + 4, 34 * scale * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
+    // Warm halo behind the bird, then the body outline below: the bird
+    // must lift off the brown hills (start) and purple hills (end),
+    // not print onto them. Halo first, so the body paints over it.
+    const halo = context.createRadialGradient(cx, feetY - 44, 8, cx, feetY - 44, 125);
+    halo.addColorStop(0, 'rgba(255,214,130,0.34)');
+    halo.addColorStop(1, 'rgba(255,214,130,0)');
+    context.fillStyle = halo;
+    context.fillRect(cx - 125, feetY - 169, 250, 250);
     // Dust trailing the feet while running — phase-driven, so a puff
     // is in frame on every stride instead of only when the world's
     // random dust happens to fire.
@@ -967,11 +963,9 @@ export function createRenderer(canvas) {
         context.fill();
       }
     }
-    // Two pale wind lines streaming behind the bird in the air — the
-    // cover turkey jumps, so its feet never kick up dust, and the
-    // frame used to read as a frozen cut-out. The streaks grow
-    // stronger the higher the jump, and a single loose feather rides
-    // the lower one, so the leap has motion even in a still frame.
+    // Two pale wind lines streaming behind the bird in the air, plus
+    // a loose feather on the lower one, so the leap has motion even
+    // in a still frame; stronger the higher the jump.
     if (pose === 'jump') {
       const k = clamp(p.y / 120, 0.25, 1);
       context.lineCap = 'round';
@@ -996,8 +990,7 @@ export function createRenderer(canvas) {
       context.fill();
       context.restore();
     }
-    // Landing dust ring: a flat ring that spreads and fades as the
-    // squash settles, so a landing reads even in a still frame.
+    // Landing dust ring: spreads and fades as the squash settles.
     if (p.squash > 0 && !air) {
       const k = 1 - p.squash;
       context.strokeStyle = `rgba(240,214,170,${p.squash * 0.55})`;
@@ -1007,9 +1000,9 @@ export function createRenderer(canvas) {
       context.stroke();
     }
     context.save();
-    context.translate(cx, feetY + runBob);
+    context.translate(cx + (pose === 'hurt' ? Math.sin(state.elapsed * 28) * 4 : 0), feetY + runBob);
     context.rotate(tilt);
-    context.scale(squashX * (pose === 'jump' ? 0.96 : 1) * scale, squashY * (pose === 'jump' ? 1.06 : 1) * scale);
+    context.scale(squashX * (pose === 'jump' ? 0.92 : 1) * scale, squashY * (pose === 'jump' ? 1.1 : 1) * scale);
     if (p.pumpkin > 0) {
       const glow = context.createRadialGradient(0, -44, 6, 0, -44, 110);
       glow.addColorStop(0, 'rgba(255,210,62,0.55)');
@@ -1033,8 +1026,9 @@ export function createRenderer(canvas) {
     }
     // Fanned tail feathers — the silhouette that says "turkey". The fan
     // wags as it runs, spreads wide and lifts in a jump, flattens back
-    // in a slide and droops when hurt.
-    const tailSpread = pose === 'jump' ? 1.3 : pose === 'slide' ? 0.4 : pose === 'hurt' ? 0.55 : 1 + Math.sin(p.runPhase * 2) * 0.18;
+    // in a slide and droops when hurt. Pale rim on each feather, so the
+    // fan reads against the hills instead of melting into them.
+    const tailSpread = pose === 'jump' ? 1.45 : pose === 'slide' ? 0.4 : pose === 'hurt' ? 0.55 : 1 + Math.sin(p.runPhase * 2) * 0.3;
     const tailLift = pose === 'jump' ? -0.35 : pose === 'slide' ? 0.3 : pose === 'hurt' ? 0.35 : 0;
     for (let i = -2; i <= 2; i += 1) {
       const ang = i * 0.42 * tailSpread;
@@ -1047,6 +1041,9 @@ export function createRenderer(canvas) {
       context.beginPath();
       context.ellipse(0, -len / 2, 15, len / 2, 0, 0, Math.PI * 2);
       context.fill();
+      context.strokeStyle = 'rgba(255,220,150,0.45)';
+      context.lineWidth = 1.5;
+      context.stroke();
       context.fillStyle = 'rgba(60,25,5,0.55)';
       context.beginPath();
       context.ellipse(0, -len + 12, 6, 8, 0, 0, Math.PI * 2);
@@ -1057,7 +1054,7 @@ export function createRenderer(canvas) {
     // stretched out behind in a slide, splayed when hurt.
     const legSwing = Math.sin(p.runPhase * 2);
     context.strokeStyle = '#e8a33c';
-    context.lineWidth = 5;
+    context.lineWidth = 6;
     context.lineCap = 'round';
     context.beginPath();
     if (pose === 'jump') {
@@ -1076,38 +1073,46 @@ export function createRenderer(canvas) {
       context.moveTo(10, -14);
       context.lineTo(22, 0);
     } else {
+      // Bent knees — front knee forward, back knee back — so the stride
+      // reads even in the frame where the feet cross mid-cycle.
       context.moveTo(-4, -14);
-      context.lineTo(-4 + legSwing * 15, 0);
+      context.lineTo(-4 + legSwing * 10 + 6, -7);
+      context.lineTo(-4 + legSwing * 20, 0);
       context.moveTo(10, -14);
-      context.lineTo(10 - legSwing * 15, 0);
+      context.lineTo(10 - legSwing * 10 - 6, -7);
+      context.lineTo(10 - legSwing * 20, 0);
     }
     context.stroke();
     if (pose === 'run') {
       // Little feet at the end of each stride.
       context.lineWidth = 4;
       context.beginPath();
-      context.moveTo(-4 + legSwing * 15, 0);
-      context.lineTo(-4 + legSwing * 15 + 8, 0);
-      context.moveTo(10 - legSwing * 15, 0);
-      context.lineTo(10 - legSwing * 15 + 8, 0);
+      context.moveTo(-4 + legSwing * 20, 0);
+      context.lineTo(-4 + legSwing * 20 + 11, 0);
+      context.moveTo(10 - legSwing * 20, 0);
+      context.lineTo(10 - legSwing * 20 + 11, 0);
       context.stroke();
     }
-    // Far wing: a darker sliver behind the body, visible when raised.
-    if (pose === 'jump' || pose === 'hurt') {
-      context.save();
-      context.translate(-6, -bodyH / 2 - 10);
-      context.rotate(pose === 'jump' ? -1.0 + Math.sin(state.elapsed * 16) * 0.3 : -0.7 + Math.sin(state.elapsed * 20) * 0.3);
-      context.fillStyle = PALETTE.turkeyDark;
-      context.beginPath();
-      context.ellipse(-6, -4, 18, 11, 0, 0, Math.PI * 2);
-      context.fill();
-      context.restore();
-    }
-    // Plump body with scalloped feather rows.
+    // Far wing: a darker sliver behind the body, raised in counter-phase
+    // while running so both wings read as flapping, thrown wide on a jump.
+    const farFlap = pose === 'jump' ? -1.0 + Math.sin(state.elapsed * 16) * 0.3 : pose === 'hurt' ? -0.7 + Math.sin(state.elapsed * 20) * 0.3 : pose === 'slide' ? 0.35 : -0.5 - Math.sin(p.runPhase * 2) * 0.3;
+    context.save();
+    context.translate(-6, -bodyH / 2 - 10);
+    context.rotate(farFlap);
+    context.fillStyle = PALETTE.turkeyDark;
+    context.beginPath();
+    context.ellipse(-6, -4, 18, 11, 0, 0, Math.PI * 2);
+    context.fill();
+    context.restore();
+    // Plump body with scalloped feather rows, plus a dark outline so
+    // the body holds its edge against the hills behind it.
     context.fillStyle = PALETTE.turkeyBody;
     context.beginPath();
     context.ellipse(6, -bodyH / 2 - 6, bodyW / 2, bodyH / 2, 0, 0, Math.PI * 2);
     context.fill();
+    context.strokeStyle = '#4a2c12';
+    context.lineWidth = 2.5;
+    context.stroke();
     context.fillStyle = PALETTE.turkeyLight;
     for (let r = 0; r < 3; r += 1) {
       for (let i = 0; i < 3; i += 1) {
@@ -1117,18 +1122,21 @@ export function createRenderer(canvas) {
       }
     }
     // Near wing — pumping while running, thrown wide on a jump, tucked
-    // flat in a slide, flailing when hurt. A lighter brown with a dark
-    // outline, so it reads against the darker body instead of melting
-    // into it.
-    const wingFlap = pose === 'jump' ? -1.25 + Math.sin(state.elapsed * 16) * 0.35 : pose === 'slide' ? 0.55 : pose === 'hurt' ? -0.9 + Math.sin(state.elapsed * 20) * 0.3 : Math.sin(p.runPhase * 2) * 0.4 - 0.15;
-    const wingLen = pose === 'jump' ? 26 : 20;
-    const wingH = pose === 'jump' ? 14 : 12;
+    // flat in a slide, flailing when hurt. Bigger and paler than the
+    // body, with a dark outline and tip ticks, so it reads as a wing
+    // instead of melting into the body.
+    const wingFlap = pose === 'jump' ? -1.9 + Math.sin(state.elapsed * 16) * 0.35 : pose === 'slide' ? 0.55 : pose === 'hurt' ? -1.0 + Math.sin(state.elapsed * 20) * 0.4 : Math.sin(p.runPhase * 2) * 0.55 - 0.25;
+    const wingLen = pose === 'jump' ? 34 : 26;
+    const wingH = pose === 'jump' ? 17 : 15;
     context.save();
-    context.translate(2, -bodyH / 2 - 8);
+    // On a jump the wing anchors at the top of the body and throws
+    // up-back, clear of the body silhouette — centred on the body it
+    // read as a belly patch, not a raised wing.
+    context.translate(pose === 'jump' ? -4 : 2, pose === 'jump' ? -bodyH - 2 : -bodyH / 2 - 8);
     context.rotate(wingFlap);
-    context.fillStyle = '#a06830';
+    context.fillStyle = '#b57a35';
     context.strokeStyle = '#5a3a1a';
-    context.lineWidth = 2;
+    context.lineWidth = 2.5;
     context.beginPath();
     context.ellipse(-4, 0, wingLen, wingH, 0, 0, Math.PI * 2);
     context.fill();
@@ -1137,6 +1145,14 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.ellipse(-8, -3, 8, 4, 0, 0, Math.PI * 2);
     context.fill();
+    context.strokeStyle = '#5a3a1a';
+    context.lineWidth = 2;
+    context.beginPath();
+    for (let i = -1; i <= 1; i += 1) {
+      context.moveTo(-wingLen + 4, i * 6);
+      context.lineTo(-wingLen - 8, i * 8);
+    }
+    context.stroke();
     context.restore();
     // Neck, head, beak, wattle and a bright eye — the head rides higher
     // and the eye goes wide in a jump, narrows in a slide, and turns
@@ -1199,8 +1215,7 @@ export function createRenderer(canvas) {
       context.stroke();
     }
     // Impact starburst on a fresh hit, drawn AFTER the body so it is
-    // never buried under the feathers: a white flash that sells the
-    // blow in the same frame the feather burst flies.
+    // never buried under the feathers.
     if (pose === 'hurt') {
       const sa = clamp(p.squash, 0, 1);
       context.strokeStyle = `rgba(255,255,255,${0.9 * sa})`;
@@ -1230,16 +1245,17 @@ export function createRenderer(canvas) {
     context.restore();
   }
 
-  // ---- the farmer ----
-  // Three states that read at a glance, to match the turkey's four
-  // poses: a leaning run with pumping arms and kicked-up dust, a windup
-  // with the knife cocked high behind his head (and a white throw arc),
-  // and a close-chase lunge with an angry shouting face. He is drawn
-  // ~22% bigger than before, so the second lead still reads when the
-  // contact sheet shrinks — a thin stick figure did not.
+    // ---- the farmer ----
+    // Three states: leaning run with pumping arms and dust, windup
+    // with the knife cocked high, close-chase lunge with a shouting
+    // face. Drawn ~22% bigger than before, so the second lead still
+    // reads when the contact sheet shrinks.
   function drawFarmer(state, scale, screen) {
     const f = state.farmer;
     const gap = f.gap;
+    // Muted one notch (was #2e5fa8/#c0392b): the farmer was the most
+    // saturated figure in every frame; the turkey must lead now.
+    const OVERALLS = '#47688f', SHIRT = '#a05243', SHIRT_DK = '#7e463a', LEG = '#3d5a7d';
     // The pursuer is always on screen, clamped to the left edge: the
     // chase must read at a glance in every frame. The metres above him
     // and the progress bar give the true distance. The clamp keeps his
@@ -1267,13 +1283,8 @@ export function createRenderer(canvas) {
       pill(labelCx - 26, labelTop, 52, 26, 9, 'rgba(20,10,2,0.65)');
       text(label, labelCx, labelTop + 19, 17, '#ffd9d0', 'center', '800');
     }
-    // A pool of sunlit dirt under his feet, drawn before the shadow:
-    // his dark boots used to melt into the dark track and whatever
-    // faded hay or tree stood behind him, so the ground right under
-    // him is lit a little warmer and lighter — the boots read against
-    // it at a glance, and the farmer lifts off the background. A
-    // squashed radial gradient, so the light fades out softly in
-    // every direction with no hard edge.
+    // A pool of sunlit dirt under his feet, drawn before the shadow,
+    // so his dark boots read against the track.
     context.save();
     context.translate(fx + 4, gy + 6);
     context.scale(1, 0.25);
@@ -1319,7 +1330,7 @@ export function createRenderer(canvas) {
     // Legs — bent knees, blue overalls, brown boots at the end of each
     // stride, instead of two straight sticks.
     function leg(hipX, kneeX, footX) {
-      context.strokeStyle = '#24497f';
+      context.strokeStyle = LEG;
       context.lineWidth = 9;
       context.lineCap = 'round';
       context.beginPath();
@@ -1336,11 +1347,11 @@ export function createRenderer(canvas) {
     leg(9, 9 - stride * 8, 9 - stride * 15);
     // Blue overalls over a red plaid shirt, with shoulder straps and
     // brass buttons — a farmer, not a red rectangle.
-    context.fillStyle = PALETTE.farmerOveralls;
+    context.fillStyle = OVERALLS;
     context.fillRect(-14, -78, 34, 42);
-    context.fillStyle = PALETTE.farmerShirt;
+    context.fillStyle = SHIRT;
     context.fillRect(-16, -96, 38, 22);
-    context.fillStyle = PALETTE.farmerOveralls;
+    context.fillStyle = OVERALLS;
     context.fillRect(-12, -96, 6, 22);
     context.fillRect(8, -96, 6, 22);
     context.fillStyle = '#ffd23e';
@@ -1348,7 +1359,7 @@ export function createRenderer(canvas) {
     context.arc(-9, -76, 2.2, 0, Math.PI * 2);
     context.arc(11, -76, 2.2, 0, Math.PI * 2);
     context.fill();
-    context.strokeStyle = 'rgba(255,255,255,0.35)';
+    context.strokeStyle = 'rgba(255,255,255,0.22)';
     context.lineWidth = 2;
     context.beginPath();
     context.moveTo(-18, -88);
@@ -1364,7 +1375,7 @@ export function createRenderer(canvas) {
     // behind his head on a windup, knife in hand, with a white arc
     // showing the throw that is coming.
     const pump = Math.sin(f.anim) * 7;
-    context.strokeStyle = PALETTE.farmerShirtDark;
+    context.strokeStyle = SHIRT_DK;
     context.lineWidth = 9;
     context.lineCap = 'round';
     context.beginPath();
@@ -1485,7 +1496,7 @@ export function createRenderer(canvas) {
     context.ellipse(4, -118, 23, 6, 0, 0, Math.PI * 2);
     context.fill();
     context.fillRect(-8, -134, 22, 16);
-    context.fillStyle = '#c0392b';
+    context.fillStyle = SHIRT;
     context.fillRect(-8, -121, 22, 4);
     // "!" when he is close enough to smell dinner.
     if (gap < 12) {
