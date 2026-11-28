@@ -547,6 +547,14 @@ export function createRenderer(canvas) {
         ellipse(sx - 12, gy - 14, 16, 10, stage.tree);
       }
     }
+    // Play only, far-right verge pumpkin: the danger frame's near
+    // ground right of the fence run is bare dirt. After the scenery
+    // trees, so it fronts the canopy (in the hills it hid behind
+    // the tree). Phase 400/1400: x~1051 in danger, off-band in play.
+    if (screen === SCREEN_PLAY) {
+      const pkx = ((400 - scroll) % 1400 + 1400) % 1400 - 60;
+      if (pkx >= 700 && pkx <= 1280) drawPumpkin(pkx, FIELD.groundY - 12, 17);
+    }
     // Foreground grass along the very bottom edge: bigger, darker
     // blades than the verge tufts, scrolling at full speed — a near
     // layer, so the bottom of the frame stops reading as flat dirt.
@@ -579,6 +587,10 @@ export function createRenderer(canvas) {
         context.fillRect(wx, FIELD.groundY + 66 + (i % 3) * 4, 46, 3);
       }
     }
+    // End only: warm light pooled on the dirt under the hero
+    // turkey, so its brown lower body (R~140) lifts off the dark
+    // ground (R~140 there; the halo sits too high to light it).
+    if (screen === SCREEN_OVER) ellipse(361, 424, 150, 24, 'rgba(255,214,130,0.22)');
     // The freedom fence: a white picket line at the finish.
     if (state.distance > TOTAL_DISTANCE - 130) {
       const fx = TURKEY_X + (TOTAL_DISTANCE - state.distance) * PX_PER_M;
