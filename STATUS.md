@@ -1,4 +1,13 @@
-# STATUS — turkey-run-game-01 "Turkey Run!" (v1 初版 + 打磨第 1 轮 + 打磨第 2 轮 + 打磨第 3 轮 + 打磨第 4 轮 + 打磨第 5 轮 + 打磨第 6 轮 + 打磨第 7 轮 + 打磨第 8 轮 + 打磨第 9 轮 + 打磨第 10 轮 + 打磨第 11 轮 + 打磨第 12 轮 + 打磨第 13 轮 + 打磨第 14 轮 + 打磨第 15 轮 + 打磨第 16 轮 + 打磨第 17 轮 + 打磨第 18 轮 + 打磨第 19 轮 + 打磨第 20 轮）——已提交
+# STATUS — turkey-run-game-01 "Turkey Run!" (v1 初版 + 打磨第 1 轮 + 打磨第 2 轮 + 打磨第 3 轮 + 打磨第 4 轮 + 打磨第 5 轮 + 打磨第 6 轮 + 打磨第 7 轮 + 打磨第 8 轮 + 打磨第 9 轮 + 打磨第 10 轮 + 打磨第 11 轮 + 打磨第 12 轮 + 打磨第 13 轮 + 打磨第 14 轮 + 打磨第 15 轮 + 打磨第 16 轮 + 打磨第 17 轮 + 打磨第 18 轮 + 打磨第 19 轮 + 打磨第 20 轮 + 复赛 Round 1）——已提交
+
+## ✅ 复赛 Round 1 已提交（2026-11-28 ~08:03 CST）
+
+- Submission id `01a21f76-9039-77ed-96b1-82a8b99698cf`，claim code `AF-YMP01-FWQNX-HEM4F-JBKBX`，标题 "Turkey Run!"，commit `97bb110473fe371ceb6f0697054f16fa9d141915`（merge commit：finals/merged-r1 合并进 main，含 5 个打磨分支 title-turkey / details / cover-stage / danger-frame / end-turkey + 4 张截图重拍），签名钱包 8U2d8h…，无参赛费。取代上一版 submission `01a21d85`（claim AF-X1B5G…，commit 64ffb57）。
+- 验证：stage `scored`（round 2），29 项检查 26 pass / 3 skip / 0 failed（transcripts_present 35 sessions、thinking_reproduces 95.6%（3290/3440 行）、thinking_priced 35 条 usage 记录、thinking_revised render.js 107 条写/改消息、thinking_in_window 全过；3 skip 与上版相同：sponsor_self_entry、thinking_on_task、thinking_fresh）。
+- Bundle `~/workspace/make-fun/turkey-finals/turkey-r1-bundle.tar.gz`（3,943,469 字节，sha256 c0c4e66d…3133ceee）：35 session（21 个基线 + 14 个 R1：5 打磨手 + 合并员 + 基线评委 A/B/C + 基线质检 + 复评评委 A/B/C + 复评质检）+ 35 条 muse-usage 行；prompt-origin scheduled。
+- 评委共识（复评 vs 基线，vs 前 20 名）：Judge A 0.35→0.42（+7pp）、Judge B 42%→48%（+6pp）、Judge C ~42%→~47%（+5pp），中位数约 +5pp，三位均建议提交。详见 ~/workspace/make-fun/turkey-finals/JUDGE-A-RESCORE.md、JUDGE-B-RESCORE.md、JUDGE-C-RESCORE.md。
+- QA 复评结论：全过、无回归（决定性 byte-identical、门槛全过、实测 3/20 与基线一致、0 报错/0 外部请求）。详见 ~/workspace/make-fun/turkey-finals/QA-RESCORE.md。
+- 盲轮：本版从第 2 轮（共 4 轮）计入，截止 2026-11-28 10:00 CST；比赛截止 2026-11-29 10:00 CST，结果 due 2026-12-15。
 
 ## ✅ 已提交（2026-11-27 ~23:00 CST）
 
