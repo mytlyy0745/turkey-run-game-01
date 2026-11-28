@@ -1071,9 +1071,7 @@ export function createRenderer(canvas) {
     const tilt = pose === 'jump' ? -0.2 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.1 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
     // A soft contact shadow grounds the turkey, even mid-jump.
     ellipse(cx, gy + 4, 34 * scale * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
-    // Warm halo behind the bird, then the body outline below: the bird
-    // must lift off the brown hills (start) and purple hills (end),
-    // not print onto them. Halo first, so the body paints over it.
+    // Warm halo behind the bird so it lifts off the brown/purple hills.
     const halo = context.createRadialGradient(cx, feetY - 44, 8, cx, feetY - 44, 125);
     halo.addColorStop(0, 'rgba(255,214,130,0.34)');
     halo.addColorStop(1, 'rgba(255,214,130,0)');
@@ -1245,6 +1243,11 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.ellipse(6, -bodyH / 2 - 6, bodyW / 2, bodyH / 2, 0, 0, Math.PI * 2);
     context.fill();
+    // G-02 rim light: a gold stroke under the dark outline, 1 px
+    // proud of it all round, so the brown body lifts off the hills.
+    context.strokeStyle = 'rgba(255,230,170,0.85)';
+    context.lineWidth = 5.5;
+    context.stroke();
     context.strokeStyle = '#4a2c12';
     context.lineWidth = 3.5;
     context.stroke();
@@ -1300,6 +1303,12 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(headX, headY, 12, 0, Math.PI * 2);
     context.fill();
+    // Same rim over the head top (arc only: a full ring would stripe the neck).
+    context.strokeStyle = 'rgba(255,230,170,0.85)';
+    context.lineWidth = 1.5;
+    context.beginPath();
+    context.arc(headX, headY, 13, Math.PI * 1.05, Math.PI * 1.95);
+    context.stroke();
     context.fillStyle = PALETTE.wattle;
     context.beginPath();
     context.ellipse(headX + 4, headY + 10, 4, 8, 0.2, 0, Math.PI * 2);
@@ -2184,15 +2193,8 @@ export function createRenderer(canvas) {
       }
       if (passed) context.restore();
     }
-    // Title only: a pool of warm light behind the bird. On the title
-    // the turkey stands against the near hill (#6e4520) in almost its
-    // own browns (#8a5a2e body), so at half size it sank into the
-    // hillside; the glow lifts the hill behind it into a lit backdrop
-    // without moving the bird, and it never touches another screen —
-    // the instruction panel is drawn on top of it afterwards. The
-    // glow moves with the bird (gx follows turkeyDx): since round 21
-    // the title bird stands at x=1040, and a glow left behind at
-    // x=361 would light empty hillside while the bird stood dark.
+    // Title only: warm light behind the bird, so it lifts off the
+    // near hill (same browns as the body). gx follows turkeyDx.
     if (screen === SCREEN_TITLE) {
       const gx = TURKEY_X + TURKEY.width / 2 + turkeyDx;
       const gy = FIELD.groundY - 55;
