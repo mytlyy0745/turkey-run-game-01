@@ -1924,18 +1924,15 @@ export function createRenderer(canvas) {
     // (bottom y=175, panel top y=180).
     pill(300, 141, 680, 34, 12, 'rgba(20,8,2,0.55)');
     text('Escape the farm. Dodge the oven. Outrun the farmer.', 640, 168, 24, '#ffe9b0', 'center', '700');
-    // The instruction panel sits 8 px higher than before (top y=180),
-    // and its lines are tightened (210/238/264 -> 206/232/256, height
-    // 100 -> 88, bottom y=268) so the title turkey can grow to 1.20:
-    // the turkey's head used to clear its bottom edge by only ~10 px
-    // at 1.09 — the tightest spot on the title frame, measured off
-    // the screenshot, not guessed. The 26 px line spacing still
-    // clears the 20 px text, and the panel still clears the subtitle
-    // above it (whose descenders end ~y=173) by 7 px.
-    pill(250, 180, 780, 88, 16, PALETTE.panel, PALETTE.panelEdge);
-    text('↑ / SPACE — jump fences & ovens', 640, 206, 20, PALETTE.text, 'center', '700');
-    text('SHIFT — dash   •   ↓ near hay — hide   •   ↓ — duck high knives', 640, 232, 20, PALETTE.text, 'center', '700');
-    text('Corn = combo  •  Golden pumpkin = untouchable  •  Feather = shield', 640, 256, 19, PALETTE.muted, 'center', '700');
+    // Four lines now (was three): ←/→ join line 1, the high-knife-
+    // plus-fence answer is line 3, pickups drop to line 4. Panel
+    // 88->100 (bottom 280); the turkey's tail top is ~y295 at
+    // x<=1030, so it stays ~15 px clear. Lines 202/224/246/268.
+    pill(250, 180, 780, 100, 16, PALETTE.panel, PALETTE.panelEdge);
+    text('↑ / SPACE — jump fences & ovens   •   ← slow   •   → lean forward', 640, 202, 20, PALETTE.text, 'center', '700');
+    text('SHIFT — dash   •   ↓ near hay — hide   •   ↓ — duck high knives', 640, 224, 20, PALETTE.text, 'center', '700');
+    text('High knife + fence at once? Hold ←, let the knife pass first', 640, 246, 20, PALETTE.text, 'center', '700');
+    text('Corn = combo  •  Golden pumpkin = untouchable  •  Feather = shield', 640, 268, 19, PALETTE.muted, 'center', '700');
     if (best > 0) text(`BEST ESCAPE  ${best}`, 640, 314, 20, '#ffd23e', 'center', '900');
     const blink = Math.floor(state.elapsed * 2) % 2 === 0;
     if (blink) text('▶  PRESS SPACE OR CLICK TO RUN', 640, 354, 26, '#fff6e0', 'center', '900');
@@ -1959,11 +1956,12 @@ export function createRenderer(canvas) {
     drawFenceRun(1150, FIELD.groundY, STAGES[state.stage]);
     drawHayBale(1218, FIELD.groundY, 0.9);
     drawPumpkin(1096, FIELD.groundY - 4, 16);
-    // Title knife in flight below the panel (aim 0, at the bird):
-    // the title had an oven but no knife, so the core threat never
-    // appeared. t = 0 keeps the blade level (a spinning blade in a
-    // still title reads as tumbling). Clear of panel, BEST, barn, oven.
-    drawKnife(425, 70, 0, 1, 0);
+    // Title knife in flight below the panel (aim 0, at the bird).
+    // t = 0 keeps the blade level. Raised and pulled left (425,70 ->
+    // 405,96): the blade used to cross the CTA's opening words, and
+    // its forward lines grazed the BEST line; now it sits in the
+    // open band between panel (bottom 280) and CTA (top ~335).
+    drawKnife(405, 96, 0, 1, 0);
   }
 
   function drawPaused() {
@@ -2121,16 +2119,15 @@ export function createRenderer(canvas) {
     if (escaped) text('RANK: FREE BIRD', 700, 350, 18, '#ffd23e', 'center', '900');
     else if (score >= 1200) text('RANK: SO CLOSE — ALMOST A FREE BIRD', 700, 350, 18, '#ffd23e', 'center', '900');
     else text('RANK: SUNDAY ROAST', 700, 350, 18, '#ffd23e', 'center', '900');
-    const blink = Math.floor(state.elapsed * 2) % 2 === 0;
     // Dark pill under the re-run prompt and 8 px lower than before:
     // it used to sit bare over the freedom fence pickets (and a
     // passing knife could cross it), so at half size the white text
     // thinned out against the pale fence. The pill ends at y=416,
     // still 12 px clear of the stamina bar at y=428.
-    if (blink) {
-      pill(435, 384, 530, 32, 16, 'rgba(30,18,8,0.8)', 'rgba(255,210,62,0.5)');
-      text('▶  PRESS SPACE OR CLICK TO RUN AGAIN  (R)', 700, 407, 22, '#fff6e0', 'center', '900');
-    }
+    // Always shown, never blinking: the blink read the frozen
+    // elapsed, so about half of all deaths hid the prompt entirely.
+    pill(435, 384, 530, 32, 16, 'rgba(30,18,8,0.8)', 'rgba(255,210,62,0.5)');
+    text('▶  PRESS SPACE OR CLICK TO RUN AGAIN  (R)', 700, 407, 22, '#fff6e0', 'center', '900');
   }
 
   // ---- one frame ----

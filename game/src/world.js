@@ -97,6 +97,9 @@ export function createWorld(random) {
     shake: 0, hitFlash: 0, pop: 0, popKind: 0, comboPop: 0, // feel timers, decayed in step()
   };
 
+  // Patterns spawned this run; the first two are forced fences (below).
+  let patternsSpawned = 0;
+
   function reset() {
     player.y = 0; player.vy = 0; player.ducking = false; player.hiding = 0;
     player.hideCool = 0; player.invulnerable = 0; player.stamina = TURKEY.staminaMax;
@@ -111,6 +114,7 @@ export function createWorld(random) {
     state.corn = 0; state.pumpkins = 0; state.feathers = 0; state.hides = 0;
     state.knivesDodged = 0; state.over = false; state.escaped = false;
     state.nextSpawnAt = 26; state.flash = ''; state.flashTimer = 0;
+    patternsSpawned = 0;
     state.banner = STAGES[0].name; state.bannerTimer = 2.6; state.speed = 0;
     state.shake = 0; state.hitFlash = 0; state.pop = 0; state.popKind = 0; state.comboPop = 0;
   }
@@ -155,11 +159,17 @@ export function createWorld(random) {
     p.max = 0.7 + prandom() * 0.5; p.life = p.max; p.size = 2 + prandom() * 3;
   }
 
-  function spawnPattern(at) {
+  // opening: a real run (not the harmless title diorama, whose
+  // first pattern is the staged oven at 26 m and stays as drawn).
+  function spawnPattern(at, opening) {
     const roll = random();
     const e = freeEntity();
     if (!e) return;
-    if (roll < 0.24) { // a glowing oven squatting on the path — jump it
+    patternsSpawned += 1;
+    if (opening && patternsSpawned <= 2) { // opening pair are fences: widest jump window (0.27 s)
+      e.active = true; e.kind = KIND_FENCE; e.x = at; e.y = 0;
+      e.w = OBSTACLE.fenceWidthM; e.h = 44;
+    } else if (roll < 0.24) { // a glowing oven squatting on the path — jump it
       e.active = true; e.kind = KIND_OVEN; e.x = at; e.y = 0;
       e.w = OBSTACLE.ovenWidthM; e.h = 56;
     } else if (roll < 0.5) { // a farm fence — jump it
@@ -365,7 +375,7 @@ export function createWorld(random) {
 
     // --- spawning ---
     while (state.distance + OBSTACLE.spawnAheadM > state.nextSpawnAt && state.nextSpawnAt < TOTAL_DISTANCE - 40) {
-      spawnPattern(state.nextSpawnAt);
+      spawnPattern(state.nextSpawnAt, !harmless);
       state.nextSpawnAt += OBSTACLE.minGapM + random() * (OBSTACLE.maxGapM - OBSTACLE.minGapM);
     }
 
