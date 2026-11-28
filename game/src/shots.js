@@ -10,7 +10,7 @@ import { STEP, TURKEY, TURKEY_X, PX_PER_M, FIELD } from './config.js';
 import { EVENT_OVER, EVENT_ESCAPED, KIND_OVEN, KIND_FENCE, KIND_BALE, KIND_KNIFE, KIND_HAYSTACK } from './world.js';
 import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
 
-const START_SECONDS = 6;
+const START_SECONDS = 6.4;
 const DANGER_LIMIT_SECONDS = 90;
 const END_LIMIT_SECONDS = 600;
 const HORIZON_PLAY = 1.1;

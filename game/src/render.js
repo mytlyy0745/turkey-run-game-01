@@ -1081,7 +1081,7 @@ export function createRenderer(canvas) {
     ellipse(cx, gy + 4, 34 * scale * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
     // Warm halo behind the bird so it lifts off the brown/purple hills.
     const halo = context.createRadialGradient(cx, feetY - 44, 8, cx, feetY - 44, 125);
-    halo.addColorStop(0, 'rgba(255,214,130,0.34)');
+    halo.addColorStop(0, 'rgba(255,214,130,0.50)');
     halo.addColorStop(1, 'rgba(255,214,130,0)');
     context.fillStyle = halo;
     context.fillRect(cx - 125, feetY - 169, 250, 250);
@@ -1254,7 +1254,7 @@ export function createRenderer(canvas) {
     // G-02 rim light: a gold stroke under the dark outline, 1 px
     // proud of it all round, so the brown body lifts off the hills.
     context.strokeStyle = 'rgba(255,230,170,0.85)';
-    context.lineWidth = 5.5;
+    context.lineWidth = 6.5;
     context.stroke();
     context.strokeStyle = '#4a2c12';
     context.lineWidth = 3.5;
@@ -1408,7 +1408,7 @@ export function createRenderer(canvas) {
     // Muted once more (was #2e5fa8/#c0392b, then #47688f/#a05243): the
     // farmer was the most saturated figure in every frame; the turkey
     // must lead now.
-    const OVERALLS = '#4b6584', SHIRT = '#93554a', SHIRT_DK = '#74483e', LEG = '#405773';
+    const OVERALLS = '#55606c', SHIRT = '#7f5c52', SHIRT_DK = '#74483e', LEG = '#405773';
     // The pursuer is always on screen, clamped to the left edge: the
     // chase must read at a glance in every frame. The metres above him
     // and the progress bar give the true distance. The clamp keeps his

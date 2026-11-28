@@ -1,7 +1,7 @@
 [
   {
     "name": "1-play.jpg",
-    "query": "?shot=play&seed=238"
+    "query": "?shot=play&seed=79"
   },
   {
     "name": "2-start.jpg",
@@ -9,7 +9,7 @@
   },
   {
     "name": "3-danger.jpg",
-    "query": "?shot=danger&seed=249"
+    "query": "?shot=danger&seed=137"
   },
   {
     "name": "4-end.jpg",
