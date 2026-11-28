@@ -1804,7 +1804,10 @@ export function createRenderer(canvas) {
     // Hearts on the right — hidden on the end screen: the run is
     // over, so the lives left mean nothing there, and the headline
     // owns the frame, so the hearts are clutter. They stay on every
-    // screen where the chase is still live.
+    // screen where the chase is still live. On the end screen the
+    // same slot gets a gold rank pill instead: without it the top
+    // bar's right end is an empty black hole (the only frame where
+    // the HUD is visibly incomplete at contact-sheet size).
     if (screen !== SCREEN_OVER) {
       text('LIVES', 1150, 34, 15, PALETTE.muted, 'left', '800');
       for (let i = 0; i < LIVES; i += 1) {
@@ -1822,6 +1825,9 @@ export function createRenderer(canvas) {
         context.closePath();
         context.fill();
       }
+    } else {
+      pill(1136, 36, 130, 30, 10, 'rgba(255,210,62,0.95)');
+      text(state.escaped ? '★ FREE BIRD' : '★ CAUGHT', 1201, 56, 15, '#3a2400', 'center', '900');
     }
     // COMBO pill bounces per pickup, gold at the x5 cap.
     if (state.combo >= 2) {

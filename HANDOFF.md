@@ -1,5 +1,14 @@
 # HANDOFF — turkey-run-game-01 "Turkey Run!"
 
+## 🔄 R3 打磨链第 3 轮：结束帧 HUD 右上角空黑洞 → 金色 ★ FREE BIRD 徽章（2026-11-28，分支 finals/r3-rounds-3-10，worktree wt-r3-chain-1，基底 04d5ee7 merged-r3，未提交）
+
+- **Li 2026-11-28 16:32 下令先不提交——本分支只改不动提交；当前参赛版保持 01a21fbe。** 也不赶 22:00 第 3 轮截止，质量优先。
+- **Revision pass（本 session 的真实写→运行→改→再运行）**：① 基线 4 张逐张目视 + 3 处裁剪放大（danger OVEN!、end FREEDOM、play 右侧天空带）→ 两个疑似缺陷被像素量过后证伪（OVEN! 的 O 完整可读，玉米只压 pill 左缘；FREEDOM 金字半尺寸下清晰），第三处（play 右侧天空带）留待后轮；② 锁定真缺陷：结束帧 HUD 右上角（LIVES 藏掉后留下的空黑洞）→ 写 else 分支 → 重拍验证只有 4-end 变了、其余三帧 byte-identical → 裁剪放大 + 半尺寸总览图复核通过。
+- **改动**：只改 `game/src/render.js` 的 `drawHud`（LIVES 分支加 else）：SCREEN_OVER 时在原 LIVES 槽位（x1136–1266，与红心区同位）画金色 pill `★ FREE BIRD`（逃脱）/`★ CAUGHT`（被抓分支同款槽位）；其余三帧、world.js、shots.js、shots.json、main.ts 未动。难度数值未动。
+- **验证**：基线重拍与 repo 截图 4 张全部 byte-identical（拍摄管线可信）；改后重拍 1-play/2-start/3-danger byte-identical、仅 4-end 变化（1/16 抽样 >30 级像素 257 个，全在 pill 区）；裁剪放大确认 pill 金底深字、无压字、无碰撞（ESCAPE 条止于 x920）；半尺寸 2×2 总览图通过，四帧 HUD 右上角首次一致（红心×3 + 金徽章×1）；`main.ts` 两次 byte-identical；0 console 报错、0 外部请求、0 失败请求；`node --check` 全过。
+- **Dossier**：161,228 → **161,621 字节（+393，余量 2,219，无截断标记）**。截图 4-end 88,441 → 90,070 字节（≤256 KiB）。
+- **下一轮候选**：play 帧右侧天空带（x700–1280、y120–300：太阳 + 一朵云之外大片空蓝）最弱；其次结束帧火鸡下半身与深色地面融合（R3 第 1–2 轮已做描边 + 暖光池，再推需小心过描边）。
+
 ## 🔄 复赛 Round 3 打磨 · builder B（程序 + 美术）：河边蓝探针否决换帧 + 危险帧近景南瓜 + 结束帧地面暖光池（2026-11-28，分支 finals/r3-stage，未提交）
 
 - **分支**：`finals/r3-stage`（worktree `~/workspace/make-fun/turkey-finals3/wt-r3-stage`，基底 `818703d` R2 合并版；只改 `game/src/render.js` + `screenshots/3-danger.jpg` + `screenshots/4-end.jpg`；`shots.json`、`shots.js`、`world.js`、`main.ts` 未动）。**Li 2026-11-28 16:32 下令先不提交——本分支只改不动提交，提交由总协调员在 Li 点头后做；当前参赛版保持 01a21fbe。**也不赶 22:00 第 3 轮截止，质量优先。
