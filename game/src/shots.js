@@ -161,22 +161,10 @@ export function stageShot(name, world) {
     return { screen: SCREEN_TITLE, best: 0 };
   }
   if (name === 'play') {
-    // The cover runs on seed 238 (not 57): a 300-seed probe of
-    // the oven-under pick (round 14, /tmp/probe-r14.mjs) found 13
-    // clean frames (near knife + combo>=2 + no shield ring), and
-    // 238 tops them by score — 28.7 s, 1723 pts, 243 m, COMBO x5,
-    // 4 lives, knife 2-D 223 px off the bird at the farmer's feet
-    // with its trail, two whole ovens with flames and labels. The
-    // oven sits just ahead-right of the feet rather than dead
-    // under them (57's was dead under, knife 68 px at the feet),
-    // but the score is 3.9x and the combo 2.5x, and the frame is
-    // otherwise clean — no label occluded, nothing clipped at an
-    // edge. Runner-up 207 (771 pts, COMBO x5) has a bigger knife
-    // by the farmer but less than half the score; 143 (698, x4)
-    // has a pumpkin over its OVEN! label and a clipped HIDE at
-    // the right edge; 133 (755, x3) has no visible knife at all.
-    // Same pick rules, same autopilot; only the seed changed, so
-    // no gameplay code moved.
+    // Cover seed 238: 1723 pts / COMBO x5 / 243 m / 4 lives, knife
+    // 194 px true 2-D (R16 re-measure; the old probe said 223), two
+    // whole ovens with flames and labels. Runners-up 207/143/133/135
+    // rejected (low score, label occluded, no visible knife).
     // One 40 s pass, keeping the frame where the chase was closest —
     // the farmer in frame behind the turkey — with something to dodge
     // ahead. The airborne frame wins over the merely close one: a
@@ -231,31 +219,15 @@ export function stageShot(name, world) {
     return { screen: SCREEN_PLAY, best: Math.floor(world.state.score) };
   }
   if (name === 'danger') {
-    // Knife-distance-first pick (finals round 21): scan the whole 90 s
-    // and keep the frame where a knife is CLOSEST to the turkey — true
-    // 2-D centre-to-body-rect distance — among frames where the turkey
-    // is airborne over an oven. The old rule (first frame with y>=150)
-    // always landed on the same structural geometry: a high knife flies
-    // at a fixed height (y=108), so the first y>=150 frame in a jump is
-    // always the same relative position — 47 px under the feet. A
-    // 500-seed probe of the new rule (probe-danger-r21) shows the floor
-    // is the same for every seed: no seed has a knife at body/beak level
-    // while airborne over an oven (a high knife can only be at feet
-    // level or below, a low knife is 120+ px under the feet), so the
-    // closest a knife ever gets is ~16 px, grazing the feet at y~124
-    // on the way up — and that frame is what the new rule keeps. The
-    // floor is 120, not 100: at y=120 the feet are still ~64 px above
-    // the oven's top, clear of the flame tongues, and the head (top
-    // ~193) stays well clear of the HUD bar. Ties within 3 px prefer
-    // the higher score. Falls back to the end of the run if no oven
-    // leap with a knife ever happens (417/500 seeds have one).
-    // The danger seed is 249 (not 19): under the new rule both stage
-    // the same grazing geometry (16 px under the feet, y~124), but 249
-    // scores 3585 to 19's 3264, carries COMBO x2 to 19's x0, and has
-    // 2 lives left to 19's 3 — the same knife story, better numbers,
-    // one life closer to the pot. Seed 62 (3352, stage 2 riverbank)
-    // was the runner-up; its blue palette would change the frame's
-    // whole colour story, and its combo is x0.
+    // Knife-distance-first pick (finals R21): keep the airborne-over-
+    // oven frame where a knife is closest to the turkey (true 2-D
+    // centre-to-body-rect distance). Floor is ~16 px, grazing the feet
+    // at y~124; y floor 120 keeps feet clear of flames and head clear
+    // of the HUD. Ties within 3 px prefer the higher score.
+    // Danger seed 249 (not 19): same 16 px grazing geometry, but 249
+    // scores 3585 (vs 3264), COMBO x2 (vs x0), 2 lives (vs 3). Seed 62
+    // (3352, stage 2 riverbank) was runner-up; its blue would change
+    // the colour story and its combo is x0.
     let bestSnap = null;
     let bestDist = Infinity;
     let bestScore = -1;
@@ -289,24 +261,11 @@ export function stageShot(name, world) {
     if (bestSnap !== null) restoreState(world.state, bestSnap);
     return { screen: SCREEN_PLAY, best: Math.floor(world.state.score) };
   }
-  // End: a short-sighted pilot on the shot's seed. Seed 159 escapes
-  // (7130 pts, 41 corn, combo x5, 2 lives left), so the end frame
-  // shows the ESCAPED celebration — fireworks and gold feathers —
-  // instead of the CAUGHT red headline seed 7 gave. Seed 159 was
-  // picked over seed 146 (6535 pts) in round 18: a 500-seed probe of
-  // the end pilot found 89 escapes, and 159 is the highest-scoring
-  // one that is clean on all four counts — no knife crossing the
-  // freedom-gate pickets (146's low blade at sx=270, cy=368 drew a
-  // grey bar straight across the white fence), no knife in the hero
-  // head box, no feather-shield ring around the hero turkey, and the
-  // re-run prompt blink on. Its one visible knife sits at sx=201,
-  // left of the gate by the farmer — but it no longer flies: since
-  // the finals end-turkey pass it lies dropped flat on the ground
-  // (blade pointing right, no spin, no trail), a spent threat, not
-  // a defect. Seed 320 scores higher (7550) but fails two
-  // counts: a shield ring circles the hero turkey and the prompt
-  // blink is off. Seed 19 (7415 pts) still has a knife flying
-  // straight across the hero turkey's head.
+  // End seed 159 escapes (7130 pts, 41 corn, combo x5, 2 lives), so
+  // the end frame shows the ESCAPED celebration. Highest-scoring of
+  // 89 escapes clean on all four counts: no knife crossing the gate,
+  // no knife in the hero head box, no shield ring, prompt blink on.
+  // 320 (7550) fails two counts, 19 (7415) has a knife across the head.
   runFor(world, END_LIMIT_SECONDS, HORIZON_END);
   const done = world.state.over || world.state.escaped;
   return { screen: done ? SCREEN_OVER : SCREEN_PLAY, best: Math.floor(world.state.score) };
