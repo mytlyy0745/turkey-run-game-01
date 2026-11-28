@@ -1153,8 +1153,8 @@ export function createRenderer(canvas) {
       context.beginPath();
       context.ellipse(0, -len / 2, 15, len / 2, 0, 0, Math.PI * 2);
       context.fill();
-      context.strokeStyle = 'rgba(255,220,150,0.45)';
-      context.lineWidth = 1.5;
+      context.strokeStyle = 'rgba(255,220,150,0.8)';
+      context.lineWidth = 2.5;
       context.stroke();
       context.fillStyle = 'rgba(60,25,5,0.55)';
       context.beginPath();
