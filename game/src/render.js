@@ -971,14 +971,14 @@ export function createRenderer(canvas) {
     context.lineTo(-24, 11);
     context.closePath();
     // White halo first, then the fill over its inner half, then the
-    // dark edge: ~2 px of white rim survives outside the dark line.
+    // dark edge: ~1.5 px of white rim survives outside the dark line.
     context.strokeStyle = 'rgba(255,255,255,0.95)';
     context.lineWidth = 6;
     context.stroke();
     context.fillStyle = PALETTE.knifeBlade;
     context.fill();
-    context.strokeStyle = 'rgba(20,20,30,0.8)';
-    context.lineWidth = 2;
+    context.strokeStyle = 'rgba(10,5,2,0.95)';
+    context.lineWidth = 3;
     context.stroke();
     context.fillStyle = PALETTE.knifeHandle;
     context.fillRect(-40, -11, 17, 22);
@@ -1001,8 +1001,8 @@ export function createRenderer(canvas) {
     context.strokeStyle = 'rgba(255,255,255,0.95)';
     context.lineWidth = 6;
     context.stroke();
-    context.strokeStyle = 'rgba(20,20,30,0.8)';
-    context.lineWidth = 2;
+    context.strokeStyle = 'rgba(10,5,2,0.95)';
+    context.lineWidth = 3;
     context.stroke();
     context.restore();
     // Never leak the fade to whatever is drawn next.
