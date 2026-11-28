@@ -1935,6 +1935,9 @@ export function createRenderer(canvas) {
     text('Corn = combo  •  Golden pumpkin = untouchable  •  Feather = shield', 640, 268, 19, PALETTE.muted, 'center', '700');
     if (best > 0) text(`BEST ESCAPE  ${best}`, 640, 314, 20, '#ffd23e', 'center', '900');
     const blink = Math.floor(state.elapsed * 2) % 2 === 0;
+    // CTA sat on the title oven's flames and OVEN! label: near-opaque
+    // pill (0.55 still let the bright label ghost through).
+    if (blink) pill(390, 327, 500, 41, 12, 'rgba(20,8,2,0.92)');
     if (blink) text('▶  PRESS SPACE OR CLICK TO RUN', 640, 354, 26, '#fff6e0', 'center', '900');
     // The closing line sits 10 px lower than before (y=462): the
     // turkey's tail fan used to end only ~47 px above it, and the line
