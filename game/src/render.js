@@ -37,9 +37,7 @@ const BIRD_PAIR = [[0, 0], [46, -6]];
 const BIRD_FLOCK = [[0, 0], [34, -7], [62, 5]];
 const END_TUFTS = [[128, 15, '#d99a44'], [168, 18, '#4e3018'], [208, 14, '#d99a44'], [238, 12, '#d99a44']];
 
-// Draw at most this many particles a frame (pool is 140 in world.js;
 // staged scenes peak at 39). A hard bound on the worst frame, never
-// reached in normal play, so it changes no shipped screenshot.
 const MAX_DRAW_PARTICLES = 100;
 
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -55,9 +53,6 @@ export function createRenderer(canvas) {
   // each frame — so it is built once and reused instead of rebuilt
   // 60x/s for identical pixels (the play frame alone made 54
   // gradients a draw, 42 of them one radial per ember). A sprite is
-  // the same idea for a position-dependent radial glow: one
-  // pre-rendered falloff, drawn with drawImage at 2x the gradient
-  // radius and centred on the gradient centre — the same circle the
   // gradient painted, no per-frame gradient object and no
   // per-particle template strings. Varying alpha comes from
   // globalAlpha, never from a rebuilt gradient.
@@ -65,10 +60,7 @@ export function createRenderer(canvas) {
     const c = document.createElement('canvas');
     c.width = c.height = size;
     const g = c.getContext('2d');
-    // innerDyFrac shifts the gradient's inner circle down by that
-    // fraction of the radius (embers: the hot core sits 0.4 radii
     // below the flame's outer centre — a concentric sprite would
-    // paint the lower flame ~0.2 alpha too dim).
     const g2 = g.createRadialGradient(size / 2, size / 2 + (innerDyFrac || 0) * size / 2, 0, size / 2, size / 2, size / 2);
     for (const [o, col] of stops) g2.addColorStop(o, col);
     g.fillStyle = g2;
@@ -190,16 +182,11 @@ export function createRenderer(canvas) {
     context.fill();
   }
 
-  // ---- sky, sun, clouds, hills ----
   function drawSky(state, stage, screen) {
-    // stage is the live view: the base stage object, or a fresh spread
-    // when the play screen runs the cool farmyard override (COOL).
     context.fillStyle = stage === STAGES[state.stage] ? skyGrads[state.stage] : skyGradCool;
     context.fillRect(0, 0, FIELD.width, FIELD.groundY);
-    // Clouds drift on the wind — the high ones from the world, plus three
     // big soft ones lower down, so the middle of the sky is never empty.
     for (const c of state.clouds) {
-      // Warm underside shade: a cloud with a shaded belly reads as a
       // volume, not a flat white sticker cut out of the sky.
       ellipse(c.x, c.y + 9 * c.s, 48 * c.s, 11 * c.s, 'rgba(232,200,160,0.32)');
       ellipse(c.x, c.y, 52 * c.s, 17 * c.s, 'rgba(255,248,230,0.85)');
@@ -215,8 +202,6 @@ export function createRenderer(canvas) {
       ellipse(cx - 44 * cs, cy + 7, 42 * cs, 13 * cs, 'rgba(255,240,214,0.45)');
       ellipse(cx + 46 * cs, cy + 8, 44 * cs, 12 * cs, 'rgba(255,240,214,0.45)');
     }
-    // A faint cloud that gathers beside the turkey at the top of a
-    // leap (alpha follows the jump height) and fades out again on
     // the ground — never there while the bird is running, so it
     // never crowds the HUD, the title text or the end screen.
     const jumpK = clamp(state.player.y / 140, 0, 1);
@@ -228,44 +213,30 @@ export function createRenderer(canvas) {
       ellipse(jx - 34, jy + 6, 32, 10, `rgba(255,244,222,${ja * 0.9})`);
       ellipse(jx + 36, jy + 7, 34, 10, `rgba(255,244,222,${ja * 0.9})`);
     }
-    // One anchored cloud low in the middle band: the danger frame's
     // mid-sky used to be a bare orange wash, and the play frame had
     // the same gap on the right. It bobs gently instead of scrolling,
-    // so it is there in every frame — except the title and the end
-    // screen, where the panels cover it.
     const mx = 620 + Math.sin(state.elapsed * 0.22) * 18;
     const my = 215 + Math.sin(state.elapsed * 0.4) * 4;
     ellipse(mx, my, 56, 14, 'rgba(255,244,222,0.38)');
     ellipse(mx - 38, my + 6, 36, 10, 'rgba(255,244,222,0.34)');
     ellipse(mx + 40, my + 7, 38, 10, 'rgba(255,244,222,0.34)');
-    // Second anchored cloud, low in the right mid-band under the sun:
-    // the play frame's sky right of the sun was a bare blue wash
     // (sun glow only) and the scrolling clouds never park there at
-    // the shot moment. Same soft treatment as the mid cloud; the sun
-    // glow washes over it warm. It sits below the sun disc, clear
-    // of the turkey's flight, the OVEN! band and the hilltops.
     const rx = 980 + Math.sin(state.elapsed * 0.19 + 1) * 16;
     const ry = 238 + Math.sin(state.elapsed * 0.33 + 1) * 4;
     ellipse(rx, ry, 52, 13, 'rgba(255,244,222,0.36)');
     ellipse(rx - 36, ry + 6, 34, 10, 'rgba(255,244,222,0.32)');
     ellipse(rx + 38, ry + 7, 36, 10, 'rgba(255,244,222,0.32)');
-    // Low autumn sun with a warm halo, drawn AFTER the clouds so it
     // stays a bright disc instead of hiding behind one. Its centre
     // sits at y=116 so the whole disc clears the HUD bar (which ends
     // at y=78) in play frames — at y=86 the top of the disc slid
-    // behind the bar and read as a clipped half-sun.
     const sunX = 1020, sunY = 116;
     const glow = context.createRadialGradient(sunX, sunY, 8, sunX, sunY, 190);
     glow.addColorStop(0, stage.sunGlow);
     glow.addColorStop(1, 'rgba(255,200,90,0)');
     context.fillStyle = glow;
     // The rect must cover the whole gradient radius: at ±140 the glow
-    // was still ~0.16 alpha where the rect cut it, leaving a faint
-    // square edge in the sky — a vertical seam beside the sun in the
-    // danger frame. At ±190 the cut is at alpha 0.
     context.fillRect(sunX - 190, sunY - 190, 380, 380);
     // The disc is a gradient now, not a flat fill: a bright core
-    // fading to the stage sun colour at the rim, so it reads as a
     // glowing ball instead of a flat pale coin.
     const disc = context.createRadialGradient(sunX - 8, sunY - 10, 4, sunX, sunY, 36);
     disc.addColorStop(0, '#fffdf0');
@@ -274,25 +245,20 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(sunX, sunY, 36, 0, Math.PI * 2);
     context.fill();
-    // A warm rim around the disc: on the pale woods sky the pale sun
     // used to wash out into a faint blob, and on the farmyard orange
     // it was only the halo holding it together. The rim defines the
-    // disc in every stage at contact-sheet size.
     context.strokeStyle = 'rgba(255,140,30,0.55)';
     context.lineWidth = 4;
     context.beginPath();
     context.arc(sunX, sunY, 36, 0, Math.PI * 2);
     context.stroke();
     // The top-right corner by the sun used to sit empty, so a soft
-    // high cloud is anchored there, bobbing gently, with one small
-    // bird gliding below it in the sun's glow.
     const tx = 1175 + Math.sin(state.elapsed * 0.25) * 24;
     ellipse(tx, 40, 58, 14, 'rgba(255,244,222,0.6)');
     ellipse(tx - 38, 46, 34, 10, 'rgba(255,244,222,0.55)');
     ellipse(tx + 40, 47, 36, 10, 'rgba(255,244,222,0.55)');
     const dx = 1132 + Math.sin(state.elapsed * 0.3) * 18;
     const dy = 128 + Math.sin(state.elapsed * 0.5) * 6;
-    // Title only: one small faint cloud right of the sun, in the
     // last bare orange band; clear of disc, top cloud and birds.
     if (screen === SCREEN_TITLE) {
       const ux = 1185 + Math.sin(state.elapsed * 0.21 + 2) * 12;
@@ -302,7 +268,6 @@ export function createRenderer(canvas) {
     }
     const dflap = Math.sin(state.elapsed * 3.2) * 4;
     // Birds are sharp "V" gulls, not arcs: arcs in a row read as a
-    // row of closed eyes (or a frowning mouth) at contact-sheet size.
     function gull(x, y, s, flap) {
       context.beginPath();
       context.moveTo(x - 10 * s, y - 2 * s - flap);
@@ -316,7 +281,6 @@ export function createRenderer(canvas) {
     // Pair at by=102 in play (strokes y 82..113, 4 px clear of the
     // opaque HUD bar ending y=78) and at by=258 on the end screen
     // (open sky x 850..1056, y ~244..274, clear of E, pill, panel,
-    // cloud, barn, ridge, fireworks — measured off the end frame);
     // the flock is staggered (0/-7/+5 px) so it never reads as eyes.
     const over = screen === SCREEN_OVER;
     const bx = over
@@ -337,9 +301,6 @@ export function createRenderer(canvas) {
       const flap = Math.sin(state.elapsed * 5 + off) * 4;
       gull(fx2 + off, fy2 + dy2, 1, flap);
     }
-    // Woods only: one more pair gliding low over the farmer. The
-    // danger frame's upper-left band (below the COMBO pill, left of
-    // the turkey) was the emptiest patch of sky left in the sheet;
     // the farmyard cover keeps its own bird arrangement.
     if (state.stage === 1) {
       const gx = 140 + Math.sin(state.elapsed * 0.3) * 14;
@@ -366,8 +327,6 @@ export function createRenderer(canvas) {
     context.lineTo(FIELD.width, FIELD.groundY);
     context.closePath();
     context.fill();
-    // Atmospheric haze: the same ridge shape re-filled with a pale
-    // wash, so the far hills lighten toward the sky and sit further
     // back than the near ones — depth, not three flat bands.
     if (haze) { context.fillStyle = haze; context.fill(); }
   }
@@ -377,7 +336,6 @@ export function createRenderer(canvas) {
     ridge(state, 0, 46, 340, stage.hillFar, 0.12, 'rgba(255,240,214,0.20)');
     ridge(state, 150, 38, 352, stage.hillMid, 0.18, 'rgba(255,240,214,0.10)');
     ridge(state, 300, 30, 366, stage.hillNear, 0.25);
-    // Red barns ride the far ridge so the farm reads at a glance. Phases
     // keep them clear of the danger frame's knife (shifted 150 px left)
     // and the title panel (title-only phase +550 px, barns at ~190/~1170).
     const barnPhase = screen === SCREEN_TITLE ? 190 : -360;
@@ -385,7 +343,6 @@ export function createRenderer(canvas) {
     const shift = (scroll * 0.12) % 640;
     for (let i = 0; i < 2; i += 1) {
       const bx = ((i * 980 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) + barnPhase;
-      // Same maths as the far ridge, so the barn sits on the hill line.
       const wx = bx + shift;
       const by = 340 - Math.abs(Math.sin(wx * 0.006)) * 46 - Math.sin(wx * 0.013) * 46 * 0.35;
       context.fillStyle = 'rgba(122,44,26,0.85)';
@@ -399,15 +356,9 @@ export function createRenderer(canvas) {
       context.fillStyle = 'rgba(255,246,224,0.75)';
       context.fillRect(bx - 6, by - 22, 12, 22);
     }
-    // One low shrub on the far ridge, riding the same 0.12 parallax
-    // as the barns so it stays planted on the hill line: the danger
     // frame's left edge used to be empty midground — the farmer at
-    // the edge, then bare sky and hill all the way to the turkey —
-    // and this fills it without ever standing near the bird (it
     // keeps 150+ px clear of the turkey in every staged frame, and
     // in the title it sits off-screen). A low bush, not a tree: a
-    // trunk would poke up beside the turkey's head in the end frame,
-    // where this same shrub lands behind the freedom fence.
     const shx = ((210 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
     if (shx > -40 && shx < FIELD.width + 40) {
       const swx = shx + shift;
@@ -420,12 +371,10 @@ export function createRenderer(canvas) {
       ellipse(shx + 6, sby - 18, 4, 3, stage.leaf);
       ellipse(shx + 16, sby - 14, 3.5, 2.5, stage.leaf);
     }
-    // Right-band midground dressing (play+end): a second barn, oak,
     // shrub, fence and bale ride the ridge maths, drawn only at x 700..1280
     // so the turkey/knife/OVEN! label (all left of x=520) are never covered.
     if (screen === SCREEN_PLAY || screen === SCREEN_OVER) {
       const inBand = (x) => x >= 700 && x <= 1280;
-      // Second barn on the far ridge, a little smaller than the pair.
       const b2x = ((678 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
       if (inBand(b2x)) {
         const bwx = b2x + shift;
@@ -450,7 +399,6 @@ export function createRenderer(canvas) {
         const ogy = 366 - Math.abs(Math.sin(owx * 0.006)) * 30 - Math.sin(owx * 0.013) * 30 * 0.35;
         drawTree(ox, ogy + 6, 0.95, stage, 0.37);
       }
-      // Second shrub on the far ridge, far right.
       const s2x = ((1068 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
       if (inBand(s2x)) {
         const s2wx = s2x + shift;
@@ -463,10 +411,8 @@ export function createRenderer(canvas) {
         ellipse(s2x + 6, s2by - 18, 4, 3, stage.leaf);
         ellipse(s2x + 16, s2by - 14, 3.5, 2.5, stage.leaf);
       }
-      // Hay bale on the track verge, far right, at full world speed.
       const hayx = ((100 - scroll) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
       if (inBand(hayx)) drawHayBale(hayx, FIELD.groundY, 1);
-      // Fence run along the track edge, right band only, at full
       // world speed. Rails sit at y 368/382 and posts run 362..402:
       // below the OVEN! label band (labels end at y~360 in the play
       // frame, and the danger frame's label ends at x=517 anyway),
@@ -478,15 +424,11 @@ export function createRenderer(canvas) {
     }
   }
 
-  // ---- ground and mid scenery ----
   function drawGround(state, stage, screen) {
     context.fillStyle = stage === STAGES[state.stage] ? groundGrads[state.stage] : groundGradCool;
     context.fillRect(0, FIELD.groundY, FIELD.width, FIELD.height - FIELD.groundY);
-    // A dirt track the turkey runs on: a pale worn centre, two dark
-    // wheel ruts, pebbles, footprints and fallen leaves — a road with
     // texture, not a flat band. The grass stays on the verge above the
     // track, in sparse three-blade tufts, so it reads as grass instead
-    // of noise scribbled across the whole ground.
     context.fillStyle = 'rgba(60,32,8,0.35)';
     context.fillRect(0, FIELD.groundY + 34, FIELD.width, 44);
     context.fillStyle = 'rgba(233,190,120,0.22)';
@@ -503,14 +445,12 @@ export function createRenderer(canvas) {
       }
       context.stroke();
     }
-    // Sun dapples on the track: soft warm pools of light, scrolling
     // with the world, so the dirt reads as sunlit instead of flat brown.
     for (let i = 0; i < 8; i += 1) {
       const wx = i * 397 + ((i * 113) % 90);
       const sx = ((wx - scroll) % (FIELD.width + 200) + FIELD.width + 200) % (FIELD.width + 200) - 100;
       ellipse(sx, FIELD.groundY + 52 + ((i * 29) % 18), 44 + (i % 3) * 14, 9, 'rgba(255,217,138,0.10)');
     }
-    // Pebbles and fallen leaves on the track, scrolling with the world.
     for (let i = 0; i < 34; i += 1) {
       const wx = i * 197 + ((i * 89) % 60);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
@@ -518,7 +458,6 @@ export function createRenderer(canvas) {
       if (i % 3 === 0) ellipse(sx, py, 3 + (i % 3), 2, 'rgba(90,55,20,0.5)');
       else if (i % 5 === 0) ellipse(sx, py, 5, 3, LEAF_COLS[i % 3]);
     }
-    // Footprints marching along the track — a pair per stride.
     context.fillStyle = 'rgba(60,32,8,0.35)';
     for (let i = 0; i < 14; i += 1) {
       const wx = i * 97;
@@ -528,7 +467,6 @@ export function createRenderer(canvas) {
       context.ellipse(sx, fy, 4, 2.5, 0, 0, Math.PI * 2);
       context.fill();
     }
-    // Grass tufts on the verge above the track, sparse and three-bladed.
     for (let i = 0; i < 40; i += 1) {
       const wx = i * 211 + ((i * 131) % 70);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
@@ -545,17 +483,12 @@ export function createRenderer(canvas) {
       context.lineTo(sx + 6, gy - h + 2);
       context.stroke();
     }
-    // A few flat fallen leaves resting on the verge.
     for (let i = 0; i < 26; i += 1) {
       const wx = i * 263 + ((i * 71) % 80);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
       const ly = FIELD.groundY + 8 + ((i * 29) % 22);
       ellipse(sx, ly, 6, 3.5, LEAF_COLS[i % 3]);
     }
-    // A few tiny autumn wildflowers on the verge — small dots of
-    // orange and gold that break up the long empty stretches of track
-    // between the farmer and the next oven, without shouting for
-    // attention. All three ground details are pure functions of the
     // scroll, so they never touch the gameplay random stream.
     for (let i = 0; i < 10; i += 1) {
       const wx = i * 331 + ((i * 97) % 90);
@@ -567,7 +500,6 @@ export function createRenderer(canvas) {
     for (const s of state.scenery) {
       const sx = TURKEY_X + (s.at - state.distance) * PX_PER_M;
       if (sx < -160 || sx > FIELD.width + 160) continue;
-      // No tree or bush ever stands right behind the turkey: the bird
       // must read against open ground, not blend into a canopy.
       if ((s.kind === 0 && Math.abs(sx - TURKEY_X) < 150) || (s.kind === 4 && Math.abs(sx - TURKEY_X) < 110)) continue;
       const gy = FIELD.groundY;
@@ -580,20 +512,17 @@ export function createRenderer(canvas) {
         ellipse(sx - 12, gy - 14, 16, 10, stage.tree);
       }
     }
-    // Play only, far-right verge pumpkin: the danger frame's near
-    // ground right of the fence run is bare dirt. After the scenery
-    // trees, so it fronts the canopy (in the hills it hid behind
+    if (screen !== SCREEN_TITLE && screen !== SCREEN_OVER) {
+      const scx = ((1060 - scroll) % 1400 + 1400) % 1400 - 60;
+      if (scx >= 700 && scx <= 1220) drawScarecrow(scx, FIELD.groundY);
+    }
     // the tree). Phase 400/1400: x~1051 in danger, off-band in play.
     if (screen === SCREEN_PLAY) {
       const pkx = ((400 - scroll) % 1400 + 1400) % 1400 - 60;
       if (pkx >= 700 && pkx <= 1280) drawPumpkin(pkx, FIELD.groundY - 12, 17);
     }
-    // Foreground grass along the very bottom edge: bigger, darker
-    // blades than the verge tufts, scrolling at full speed — a near
-    // layer, so the bottom of the frame stops reading as flat dirt.
     // Title only skips it: the footer line sits at y=462 and the
     // blades would strike through it. Tops stay >=452, clear of the
-    // stamina bar (ends 442) and the stage line (ends ~440).
     if (screen !== SCREEN_TITLE) {
       for (let i = 0; i < 12; i += 1) {
         const wx = i * 173 + ((i * 67) % 50);
@@ -610,7 +539,6 @@ export function createRenderer(canvas) {
         context.stroke();
       }
     }
-    // The riverbank stage gets its water ribbon.
     if (state.stage === 2) {
       context.fillStyle = 'rgba(70,140,190,0.85)';
       context.fillRect(0, FIELD.groundY + 62, FIELD.width, 16);
@@ -620,11 +548,7 @@ export function createRenderer(canvas) {
         context.fillRect(wx, FIELD.groundY + 66 + (i % 3) * 4, 46, 3);
       }
     }
-    // End only: warm light pooled on the dirt under the hero
-    // turkey, so its brown lower body (R~140) lifts off the dark
-    // ground (R~140 there; the halo sits too high to light it).
     if (screen === SCREEN_OVER) ellipse(361, 424, 150, 24, 'rgba(255,214,130,0.22)');
-    // The freedom fence: a white picket line at the finish.
     if (state.distance > TOTAL_DISTANCE - 130) {
       const fx = TURKEY_X + (TOTAL_DISTANCE - state.distance) * PX_PER_M;
       drawFinishGate(fx);
@@ -654,7 +578,6 @@ export function createRenderer(canvas) {
   }
 
   function drawPumpkin(x, gy, r) {
-    // Contact shadow on the dirt under the pumpkin, so it sits on
     // the ground instead of floating a pixel above it.
     ellipse(x, gy + r * 0.8, r * 0.9, 4, 'rgba(20,10,2,0.25)');
     context.fillStyle = '#e86e10';
@@ -677,8 +600,38 @@ export function createRenderer(canvas) {
     context.stroke();
   }
 
+  function drawScarecrow(x, gy) {
+    ellipse(x, gy + 2, 16, 4, 'rgba(20,10,2,0.25)');
+    context.fillStyle = '#5a3a1a';
+    context.fillRect(x - 3, gy - 96, 6, 96);
+    context.fillRect(x - 30, gy - 80, 60, 6);
+    context.fillStyle = '#8a5a3e';
+    context.beginPath();
+    context.moveTo(x - 24, gy - 78);
+    context.lineTo(x + 24, gy - 78);
+    context.lineTo(x + 15, gy - 38);
+    context.lineTo(x - 15, gy - 38);
+    context.closePath();
+    context.fill();
+    context.strokeStyle = '#e8c95a';
+    context.lineWidth = 2;
+    for (const [sx, sy, ex, ey] of [[-30, -80, -37, -71], [30, -80, 37, -71], [-12, -38, -17, -29], [12, -38, 17, -29]]) {
+      context.beginPath();
+      context.moveTo(x + sx, gy + sy);
+      context.lineTo(x + ex, gy + ey);
+      context.stroke();
+    }
+    ellipse(x, gy - 92, 11, 11, '#d9a83e');
+    context.fillStyle = '#cbb26a';
+    context.beginPath();
+    context.ellipse(x, gy - 100, 20, 5, 0, 0, Math.PI * 2);
+    context.fill();
+    context.beginPath();
+    context.arc(x, gy - 100, 9, Math.PI, 0);
+    context.fill();
+  }
+
   function drawHayBale(x, gy, s) {
-    // Contact shadow under the dome, so the bale sits on the dirt.
     ellipse(x, gy + 2, 20 * s, 4, 'rgba(20,10,2,0.25)');
     context.fillStyle = '#d9a83e';
     context.beginPath();
@@ -686,9 +639,6 @@ export function createRenderer(canvas) {
     context.closePath();
     context.fill();
     // Straw reads as horizontal bands across the dome, not vertical
-    // bars: the old five vertical strokes made the bale read as an
-    // upturned wire basket (in the danger frame two of them side by
-    // side looked like cages). Two curved bands plus short diagonal
     // tufts at the crown keep the hay texture without the cage grid.
     context.strokeStyle = '#b8892a';
     context.lineWidth = 2;
@@ -726,55 +676,37 @@ export function createRenderer(canvas) {
     context.fillStyle = '#fff6e0';
     context.fillRect(fx - 70, FIELD.groundY - 80, 140, 8);
     // The label sits LEFT of the gate (centred on fx-140), not on it:
-    // at the finish the hero turkey stands right in front of the
     // gate at 1.4x, and centred text was 77% covered by the bird —
     // only "FR" showed. Out here it reads over open sky, clear of
-    // the turkey, the farmer (left edge) and the score panel, and it
-    // still belongs to the gate it names. In the last 130 m of a run
-    // the gate slides in from the right and the label travels with
     // it, always on the approach side.
     text('FREEDOM', fx - 140, FIELD.groundY - 132, 26, '#ffe45e', 'center', '900');
   }
 
-  // ---- hazards and pickups ----
   function drawOven(sx, wPx, t) {
     const gy = FIELD.groundY;
-    // Heat glow on the ground around it, plus a warm halo above the
     // mouth: at contact-sheet size the oven used to read as a plain
-    // dark box with a thin wisp, so the glow now wraps the whole oven
-    // and the halo lifts it off the sky behind it.
     const ocx = sx + wPx / 2;
     // Ground glow + halo stay live gradients, not sprites: the glow
     // covers ~12% of the frame and a pre-rendered sprite's
-    // premultiplied-alpha rounding shifts the whole soft falloff by
     // a few levels (PNG diff: 11.9% of pixels, max Δ 8). Two
-    // gradients per oven is cheap; the per-particle ember gradients
     // were the real churn (42/draw) and those stay sprites.
     const glow = context.createRadialGradient(ocx, gy - 30, 6, ocx, gy - 30, 165);
     glow.addColorStop(0, 'rgba(255,122,30,0.62)');
     glow.addColorStop(1, 'rgba(255,122,30,0)');
     context.fillStyle = glow;
     // The rect must cover the whole gradient radius (165): the old
-    // 220x130 rect cut the glow at ~0.10 alpha, leaving a faint
-    // rectangular edge around the oven (visible in the cover crop).
     context.fillRect(sx + wPx / 2 - 165, gy - 195, 330, 330);
     const halo = context.createRadialGradient(sx + wPx / 2, gy - 72, 4, sx + wPx / 2, gy - 72, 88);
     halo.addColorStop(0, 'rgba(255,150,50,0.4)');
     halo.addColorStop(1, 'rgba(255,150,50,0)');
     context.fillStyle = halo;
     context.fillRect(sx + wPx / 2 - 90, gy - 162, 180, 180);
-    // Contact shadow under the body, so the oven sits on the dirt
     // instead of floating in its own glow.
     ellipse(sx + wPx / 2, gy + 3, wPx * 0.55, 5, 'rgba(20,10,2,0.3)');
-    // Body, chimney and glowing door.
     context.fillStyle = PALETTE.ovenBody;
     pill(sx, gy - 56, wPx, 56, 8, PALETTE.ovenBody);
     context.fillStyle = '#2a2a33';
     context.fillRect(sx + wPx - 26, gy - 82, 18, 28);
-    // Three permanent flame tongues licking out of the oven's top,
-    // flickering with time so the oven reads as dangerous even in a
-    // still frame: the drifting ember particles alone were too thin
-    // and pale at half size. Tallest in the middle, swaying slightly.
     const cx = sx + wPx / 2;
     for (const tg of TONGUES) {
       const flick = 1 + Math.sin(t * 11 + tg.ph + sx * 0.13) * 0.16;
@@ -806,7 +738,6 @@ export function createRenderer(canvas) {
     context.moveTo(sx + wPx / 2 - 22, gy - 22);
     context.lineTo(sx + wPx / 2 + 22, gy - 22);
     context.stroke();
-    // Danger chevrons above the oven.
     context.fillStyle = '#ffd23e';
     for (let i = 0; i < 3; i += 1) {
       const cx = sx + 14 + i * 26;
@@ -819,11 +750,7 @@ export function createRenderer(canvas) {
       context.fill();
     }
     // The warning label only for an oven still ahead: one the turkey
-    // already passed sits behind the farmer and its label would
     // collide with him. It hangs BESIDE the oven, not above it: above
-    // was exactly where the jumping turkey's head and the flame
-    // tongues crossed it, so at contact-sheet size it read as a
-    // half-hidden orange smear. Beside the body, on a dark pill, it
     // stays clear of the turkey's flight path and of the flames; near
     // the right edge it flips to the oven's left side so it never
     // clips off-screen.
@@ -858,9 +785,6 @@ export function createRenderer(canvas) {
     context.fill();
     ellipse(sx + 8, cy, 11, 15, PALETTE.corn);
     // A dark gold outline so the cob reads as a cob, not a floating
-    // yellow egg: at half size the un-outlined yellow ellipse (two of
-    // them side by side in the danger frame) had no edge against the
-    // pale ground and sky.
     context.strokeStyle = '#b8860b';
     context.lineWidth = 2;
     context.beginPath();
@@ -908,14 +832,10 @@ export function createRenderer(canvas) {
     context.drawImage(featherGlowSprite, sx - 30, cy - 30, 60, 60);
   }
 
-  // Carving knife in flight: thick blade, white halo under a dark edge,
-  // ghost blades + white speed streak behind (knives fly right).
   function drawKnife(sx, y, t, alpha, aim) {
     const a = alpha === undefined ? 1 : alpha;
     const cy = FIELD.groundY - y;
     const spin = t * 9;
-    // Ghost blades: afterimages of the spin, fading with distance.
-    // Same thickened shape as the blade itself, so they read as
     // afterimages of this blade, not a thinner one behind it.
     for (const [off, ga] of [[-42, 0.3], [-80, 0.15]]) {
       context.save();
@@ -934,7 +854,6 @@ export function createRenderer(canvas) {
       context.restore();
     }
     context.globalAlpha = a;
-    // Long speed trail behind the blade.
     context.strokeStyle = 'rgba(255,255,255,0.85)';
     context.lineWidth = 4;
     context.beginPath();
@@ -950,8 +869,6 @@ export function createRenderer(canvas) {
     context.lineTo(sx - 118, cy + 16);
     context.stroke();
     // Forward speed lines, only when aim is given (far knife on the
-    // play screen): short faint streaks ahead of the blade along the
-    // knife-to-turkey line, so the throw reads as aimed at the bird
     // instead of a blade lying at the farmer's feet.
     if (aim !== undefined) {
       const ca = Math.cos(aim), sa = Math.sin(aim);
@@ -967,7 +884,6 @@ export function createRenderer(canvas) {
     }
     // The blade itself, ~35% longer and wider than before, and
     // ~35% thicker again in the finals details pass (half-height
-    // 8 -> 13). Length, position and spin are untouched.
     context.save();
     context.translate(sx, cy);
     context.rotate(spin);
@@ -978,7 +894,6 @@ export function createRenderer(canvas) {
     context.lineTo(21, 13);
     context.lineTo(-28, 13);
     context.closePath();
-    // White halo first, then the fill over its inner half, then the
     // dark edge: ~1.5 px of white rim survives outside the dark line.
     context.strokeStyle = 'rgba(255,255,255,0.95)';
     context.lineWidth = 6;
@@ -992,15 +907,7 @@ export function createRenderer(canvas) {
     context.fillRect(-47, -13, 20, 26);
     context.fillStyle = 'rgba(20,20,30,0.5)';
     context.fillRect(-47, -13, 5, 26);
-    // The handle gets the same dark outline as the blade: in the
-    // danger frame the handle crosses the oven's flame tongues, and
-    // without an edge the dark wood melts into the orange flame.
-    // The blade already had this outline; the handle was the only
-    // un-outlined part of the knife. The white halo goes under the
-    // dark edge here too: the dark edge alone left a faint residue
     // at half size. Only the three exposed sides are outlined —
-    // the fourth butts against the blade, and a white rim there
-    // would stripe across the blade's rear.
     context.beginPath();
     context.moveTo(-27, -13);
     context.lineTo(-47, -13);
@@ -1017,16 +924,10 @@ export function createRenderer(canvas) {
     context.globalAlpha = 1;
   }
 
-  // A carving knife lying dropped flat on the dirt — the escape
-  // screen's spent blade (see the KIND_KNIFE branch in drawField).
-  // Same plan as the flying knife, minus everything that reads as
-  // motion: no spin, no trail, no ghosts. Blade points right, the
-  // way it was flying; handle on the left. Its bottom edge sits on
   // the ground line (y=400) with a small contact shadow under it,
   // so it reads as resting on the dirt, not floating above it. The
   // span (sx-40..sx+32) keeps it clear of the farmer (right edge
   // ~x85), the verge tufts (tops y~404..410, below the blade) and
-  // the enlarged hero turkey's tail (left edge ~x253 at 1.8x).
   function drawDroppedKnife(sx) {
     const cy = FIELD.groundY - 6;
     ellipse(sx - 4, FIELD.groundY + 2, 34, 3, 'rgba(20,10,2,0.25)');
@@ -1051,19 +952,12 @@ export function createRenderer(canvas) {
     context.strokeRect(sx - 40, cy - 6, 17, 12);
   }
 
-  // ---- the turkey ----
-  // Four poses: pumping run, stretched jump, low slide, dazed hurt.
-  // Tail, wings, legs and eye change with the pose; scale pivots on
-  // the feet (1.12 play, 1.30 title, dx +679 title-only, centre 1040).
   function drawTurkey(state, scale, celebrate, dx) {
     const p = state.player;
     const gy = FIELD.groundY;
     const air = p.y > 0;
     const squashY = p.squash > 0 ? 1 - p.squash * 0.22 : 1;
     const squashX = p.squash > 0 ? 1 + p.squash * 0.22 : 1;
-    // dx shifts the whole bird (shadow, dust, wind lines; the warm
-    // glow is moved separately in drawField) without touching
-    // TURKEY_X, so play, the end screen and every collision stay
     // exactly where they were — only the title passes a non-zero dx.
     const cx = TURKEY_X + TURKEY.width / 2 + (dx || 0);
     const feetY = gy - p.y;
@@ -1072,22 +966,16 @@ export function createRenderer(canvas) {
     const bodyW = ducking ? 74 : 62;
     const blink = p.invulnerable > 0 && Math.floor(p.invulnerable * 10) % 2 === 0;
     if (blink || p.hiding > 0) return; // hidden behind the haystack, or blinking off
-    // A celebrating turkey leaps with its wings thrown wide even
-    // standing still — the escape frame's hero, mid-leap.
     const pose = celebrate ? 'jump' : air ? 'jump' : ducking ? 'slide' : p.squash > 0.4 ? 'hurt' : 'run';
     const runBob = pose === 'run' ? Math.sin(p.runPhase * 2) * 3 : 0;
     const tilt = pose === 'jump' ? -0.2 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.1 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
-    // A soft contact shadow grounds the turkey, even mid-jump.
     ellipse(cx, gy + 4, 34 * scale * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
-    // Warm halo behind the bird so it lifts off the brown/purple hills.
     const halo = context.createRadialGradient(cx, feetY - 44, 8, cx, feetY - 44, 125);
     halo.addColorStop(0, 'rgba(255,214,130,0.50)');
     halo.addColorStop(1, 'rgba(255,214,130,0)');
     context.fillStyle = halo;
     context.fillRect(cx - 125, feetY - 169, 250, 250);
-    // Dust trailing the feet while running — phase-driven, so a puff
     // is in frame on every stride instead of only when the world's
-    // random dust happens to fire.
     if (pose === 'run') {
       for (let i = 0; i < 2; i += 1) {
         const ph = (p.runPhase * 0.35 + i * 0.5) % 1;
@@ -1099,9 +987,6 @@ export function createRenderer(canvas) {
         context.fill();
       }
     }
-    // Two pale wind lines streaming behind the bird in the air, plus
-    // a loose feather on the lower one, so the leap has motion even
-    // in a still frame; stronger the higher the jump.
     if (pose === 'jump') {
       const k = clamp(p.y / 120, 0.25, 1);
       context.lineCap = 'round';
@@ -1126,7 +1011,6 @@ export function createRenderer(canvas) {
       context.fill();
       context.restore();
     }
-    // Landing dust ring: spreads and fades as the squash settles.
     if (p.squash > 0 && !air) {
       const k = 1 - p.squash;
       context.strokeStyle = `rgba(240,214,170,${p.squash * 0.7})`;
@@ -1150,7 +1034,6 @@ export function createRenderer(canvas) {
       context.globalAlpha = 0.55 / 0.65;
       context.drawImage(goldSprite, -110, -154, 220, 220);
       context.restore();
-      // Orbiting golden sparks and a pulsing ring: the invincible aura
       // reads as a ring of light around the bird, not just a wash.
       context.strokeStyle = `rgba(255,210,62,${0.5 + Math.sin(state.elapsed * 5) * 0.2})`;
       context.lineWidth = 2.5;
@@ -1165,9 +1048,6 @@ export function createRenderer(canvas) {
         context.fill();
       }
     }
-    // Fanned tail feathers — the silhouette that says "turkey". The fan
-    // wags as it runs, spreads wide and lifts in a jump, flattens back
-    // in a slide and droops when hurt. Pale rim on each feather, so the
     // fan reads against the hills instead of melting into them.
     const tailSpread = pose === 'jump' ? 1.6 : pose === 'slide' ? 0.4 : pose === 'hurt' ? 0.55 : 1 + Math.sin(p.runPhase * 2) * 0.3;
     const tailLift = pose === 'jump' ? -0.5 : pose === 'slide' ? 0.3 : pose === 'hurt' ? 0.35 : 0;
@@ -1191,8 +1071,6 @@ export function createRenderer(canvas) {
       context.fill();
       context.restore();
     }
-    // Legs — a big two-beat stride while running, kicked out in the air,
-    // stretched out behind in a slide, splayed when hurt.
     const legSwing = Math.sin(p.runPhase * 2);
     context.strokeStyle = '#e8a33c';
     context.lineWidth = 6;
@@ -1214,8 +1092,6 @@ export function createRenderer(canvas) {
       context.moveTo(10, -14);
       context.lineTo(22, 0);
     } else {
-      // Bent knees — front knee forward, back knee back — so the stride
-      // reads even in the frame where the feet cross mid-cycle.
       context.moveTo(-4, -14);
       context.lineTo(-4 + legSwing * 10 + 6, -7);
       context.lineTo(-4 + legSwing * 20, 0);
@@ -1225,7 +1101,6 @@ export function createRenderer(canvas) {
     }
     context.stroke();
     if (pose === 'run') {
-      // Little feet at the end of each stride.
       context.lineWidth = 4;
       context.beginPath();
       context.moveTo(-4 + legSwing * 20, 0);
@@ -1234,8 +1109,6 @@ export function createRenderer(canvas) {
       context.lineTo(10 - legSwing * 20 + 11, 0);
       context.stroke();
     }
-    // Far wing: a darker sliver behind the body, raised in counter-phase
-    // while running so both wings read as flapping, thrown wide on a jump.
     const farFlap = pose === 'jump' ? -1.2 + Math.sin(state.elapsed * 16) * 0.3 : pose === 'hurt' ? -0.7 + Math.sin(state.elapsed * 20) * 0.3 : pose === 'slide' ? 0.35 : -0.5 - Math.sin(p.runPhase * 2) * 0.3;
     context.save();
     context.translate(-6, -bodyH / 2 - 10);
@@ -1245,14 +1118,11 @@ export function createRenderer(canvas) {
     context.ellipse(-6, -4, 18, 11, 0, 0, Math.PI * 2);
     context.fill();
     context.restore();
-    // Plump body with scalloped feather rows, plus a dark outline so
-    // the body holds its edge against the hills behind it.
     context.fillStyle = PALETTE.turkeyBody;
     context.beginPath();
     context.ellipse(6, -bodyH / 2 - 6, bodyW / 2, bodyH / 2, 0, 0, Math.PI * 2);
     context.fill();
     // G-02 rim light: a gold stroke under the dark outline, 1 px
-    // proud of it all round, so the brown body lifts off the hills.
     context.strokeStyle = 'rgba(255,230,170,0.85)';
     context.lineWidth = 6.5;
     context.stroke();
@@ -1267,15 +1137,11 @@ export function createRenderer(canvas) {
         context.fill();
       }
     }
-    // Near wing — pumping while running, thrown wide on a jump, tucked
-    // flat in a slide, flailing when hurt. Bigger and paler than the
-    // body, with a dark outline and tip ticks, so it reads as a wing
     // instead of melting into the body.
     const wingFlap = pose === 'jump' ? -2.1 + Math.sin(state.elapsed * 16) * 0.35 : pose === 'slide' ? 0.55 : pose === 'hurt' ? -1.0 + Math.sin(state.elapsed * 20) * 0.4 : Math.sin(p.runPhase * 2) * 0.55 - 0.25;
     const wingLen = pose === 'jump' ? 38 : 26;
     const wingH = pose === 'jump' ? 19 : 15;
     context.save();
-    // On a jump the wing anchors at the top of the body and throws
     // up-back, clear of the body silhouette — centred on the body it
     // read as a belly patch, not a raised wing.
     context.translate(pose === 'jump' ? -4 : 2, pose === 'jump' ? -bodyH - 2 : -bodyH / 2 - 8);
@@ -1300,9 +1166,6 @@ export function createRenderer(canvas) {
     }
     context.stroke();
     context.restore();
-    // Neck, head, beak, wattle and a bright eye — the head rides higher
-    // and the eye goes wide in a jump, narrows in a slide, and turns
-    // into a dizzy X when hurt.
     const headX = 26 + (pose === 'slide' ? 6 : 0);
     const headY = -bodyH - 14 + (ducking ? 10 : 0) - (pose === 'jump' ? 8 : 0);
     context.fillStyle = PALETTE.turkeyBody;
@@ -1311,7 +1174,6 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(headX, headY, 12, 0, Math.PI * 2);
     context.fill();
-    // Same rim over the head top (arc only: a full ring would stripe the neck).
     context.strokeStyle = 'rgba(255,230,170,0.85)';
     context.lineWidth = 1.5;
     context.beginPath();
@@ -1354,7 +1216,6 @@ export function createRenderer(canvas) {
       context.arc(headX + 5, headY - 5, pose === 'jump' ? 1.4 : 1, 0, Math.PI * 2);
       context.fill();
     }
-    // A red snood over the beak, and a feather shield ring when armed.
     context.fillStyle = PALETTE.wattle;
     context.beginPath();
     context.ellipse(headX + 8, headY - 10, 3, 6, 0.4, 0, Math.PI * 2);
@@ -1366,7 +1227,6 @@ export function createRenderer(canvas) {
       context.arc(4, -bodyH / 2 - 4, 52, 0, Math.PI * 2);
       context.stroke();
     }
-    // Impact starburst on a fresh hit, drawn AFTER the body so it is
     // never buried under the feathers.
     if (pose === 'hurt') {
       const sa = clamp(p.squash, 0, 1);
@@ -1381,7 +1241,6 @@ export function createRenderer(canvas) {
       }
       context.stroke();
     }
-    // Dash speed lines streaming past the tail.
     if (p.dashing) {
       context.strokeStyle = 'rgba(255,246,224,0.5)';
       context.lineWidth = 3;
@@ -1397,22 +1256,15 @@ export function createRenderer(canvas) {
     context.restore();
   }
 
-    // ---- the farmer ----
-    // Three states: leaning run with pumping arms and dust, windup
-    // with the knife cocked high, close-chase lunge with a shouting
     // face. Drawn ~22% bigger than before, so the second lead still
-    // reads when the contact sheet shrinks.
   function drawFarmer(state, scale, screen) {
     const f = state.farmer;
     const gap = f.gap;
-    // Muted once more (was #2e5fa8/#c0392b, then #47688f/#a05243): the
-    // farmer was the most saturated figure in every frame; the turkey
     // must lead now.
     const OVERALLS = '#55606c', SHIRT = '#7f5c52', SHIRT_DK = '#74483e', LEG = '#405773';
     // The pursuer is always on screen, clamped to the left edge: the
     // chase must read at a glance in every frame. The metres above him
     // and the progress bar give the true distance. The clamp keeps his
-    // whole body on screen, and the label sits on a dark pill so it
     // never clips against the edge or washes out against the sky.
     const fx = Math.max(TURKEY_X - gap * PX_PER_M, 34);
     const gy = FIELD.groundY;
@@ -1420,25 +1272,18 @@ export function createRenderer(canvas) {
     const windup = f.windup > 0;
     const close = gap < 16;
     const surging = f.surge > 0;
-    // No gap label on the title or the over screen: the race has
     // not started / is over, so the metres mean nothing there and
-    // the pill is clutter at the left edge. It stays on every
-    // screen where the chase is live.
     if (gap > 22 && screen !== SCREEN_TITLE && screen !== SCREEN_OVER) {
       const label = `${Math.round(gap)}m`;
       // The label never hugs the left edge: when the farmer is
       // clamped to the edge his label used to start at x=14, which
-      // reads as clipped on the contact sheet. It now sits at least
       // 24 px in, centred on the farmer when he is further right.
-      // Its height follows the farmer's scale, so it still floats
-      // the same distance above his hat when he is drawn smaller.
       const labelCx = Math.max(fx + 6, 50);
       const labelTop = gy - 134 * scale - 50;
       pill(labelCx - 26, labelTop, 52, 26, 9, 'rgba(20,10,2,0.65)');
       text(label, labelCx, labelTop + 19, 17, '#ffd9d0', 'center', '800');
     }
     // A pool of sunlit dirt under his feet, drawn before the shadow,
-    // so his dark boots read against the track.
     context.save();
     context.translate(fx + 4, gy + 6);
     context.scale(1, 0.25);
@@ -1447,15 +1292,11 @@ export function createRenderer(canvas) {
     context.clip();
     context.drawImage(farmerPatchSprite, -92, -92, 184, 184);
     context.restore();
-    // Soft contact shadow under the farmer, wider now he is bigger.
     ellipse(fx + 4, gy + 4, 32, 7, 'rgba(20,10,2,0.28)');
     context.save();
     context.translate(fx, gy - bob);
-    // Lean into the chase — further forward the closer he gets; he
-    // rocks back a little while winding up a throw.
     context.rotate(windup ? -0.06 : close ? 0.16 : 0.11);
     context.scale(scale, scale);
-    // Speed lines streaming behind him while he surges after a hit.
     if (surging) {
       context.strokeStyle = 'rgba(255,246,224,0.55)';
       context.lineWidth = 3;
@@ -1468,7 +1309,6 @@ export function createRenderer(canvas) {
       }
       context.stroke();
     }
-    // Dust kicked up by each stride.
     const stride = Math.sin(f.anim);
     const dustA = Math.max(0, Math.sin(f.anim * 2)) * 0.6;
     context.fillStyle = `rgba(214,178,120,${dustA})`;
@@ -1478,7 +1318,6 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.ellipse(8 - stride * 14, -1, 7, 3.5, 0, 0, Math.PI * 2);
     context.fill();
-    // Legs — bent knees, blue overalls, brown boots at the end of each
     // stride, instead of two straight sticks.
     function leg(hipX, kneeX, footX) {
       context.strokeStyle = LEG;
@@ -1496,7 +1335,6 @@ export function createRenderer(canvas) {
     }
     leg(-5, -5 + stride * 8, -5 + stride * 15);
     leg(9, 9 - stride * 8, 9 - stride * 15);
-    // Blue overalls over a red plaid shirt, with shoulder straps and
     // brass buttons — a farmer, not a red rectangle.
     context.fillStyle = OVERALLS;
     context.fillRect(-14, -78, 34, 42);
@@ -1522,9 +1360,6 @@ export function createRenderer(canvas) {
     context.moveTo(10, -96);
     context.lineTo(10, -74);
     context.stroke();
-    // Arms — both pumping while he runs; the throwing arm cocks high
-    // behind his head on a windup, knife in hand, with a white arc
-    // showing the throw that is coming.
     const pump = Math.sin(f.anim) * 7;
     context.strokeStyle = SHIRT_DK;
     context.lineWidth = 9;
@@ -1544,15 +1379,11 @@ export function createRenderer(canvas) {
       context.lineTo(28, -62 - pump);
     }
     context.stroke();
-    // Hands.
     context.fillStyle = PALETTE.farmerSkin;
     context.beginPath();
     context.arc(-22, -62 + pump, 5, 0, Math.PI * 2);
     context.fill();
     if (windup) {
-      // The knife itself, drawn in the farmer's own coordinates — the
-      // old code called drawKnife here with world heights, which put
-      // the blade off the bottom of the screen, so his hand was empty.
       context.beginPath();
       context.arc(48, -128, 5, 0, Math.PI * 2);
       context.fill();
@@ -1574,7 +1405,6 @@ export function createRenderer(canvas) {
       context.fillStyle = PALETTE.knifeHandle;
       context.fillRect(-14, -4, 11, 8);
       context.restore();
-      // White throw arc sweeping over his head.
       context.strokeStyle = 'rgba(255,255,255,0.75)';
       context.lineWidth = 3;
       context.beginPath();
@@ -1585,8 +1415,6 @@ export function createRenderer(canvas) {
       context.arc(28, -62 - pump, 5, 0, Math.PI * 2);
       context.fill();
     }
-    // Head: skin, a grey beard and nose, two eyes, and brows that
-    // slant angry when he closes in — plus an open shouting mouth.
     context.fillStyle = PALETTE.farmerSkin;
     context.beginPath();
     context.arc(4, -108, 13, 0, Math.PI * 2);
@@ -1599,7 +1427,6 @@ export function createRenderer(canvas) {
     context.beginPath();
     context.arc(18, -108, 3.5, 0, Math.PI * 2);
     context.fill();
-    // Eyes.
     context.fillStyle = '#fff';
     context.beginPath();
     context.arc(7, -111, 3, 0, Math.PI * 2);
@@ -1610,8 +1437,6 @@ export function createRenderer(canvas) {
     context.arc(8, -111, 1.6, 0, Math.PI * 2);
     context.arc(15, -111, 1.6, 0, Math.PI * 2);
     context.fill();
-    // Brows: flat while cruising, slanted down toward the nose when
-    // he is close or winding up — the chase reads on his face.
     context.strokeStyle = '#3a2a18';
     context.lineWidth = 2.5;
     context.beginPath();
@@ -1627,7 +1452,6 @@ export function createRenderer(canvas) {
       context.lineTo(18, -117);
     }
     context.stroke();
-    // Mouth: a small line while cruising, a wide shout when close.
     if (close || windup) {
       context.fillStyle = '#7a1e10';
       context.beginPath();
@@ -1641,7 +1465,6 @@ export function createRenderer(canvas) {
       context.lineTo(13, -100);
       context.stroke();
     }
-    // Straw hat, brim wide enough to read, with its red band.
     context.fillStyle = PALETTE.farmerHat;
     context.beginPath();
     context.ellipse(4, -118, 23, 6, 0, 0, Math.PI * 2);
@@ -1649,7 +1472,6 @@ export function createRenderer(canvas) {
     context.fillRect(-8, -134, 22, 16);
     context.fillStyle = SHIRT;
     context.fillRect(-8, -121, 22, 4);
-    // "!" when he is close enough to smell dinner.
     if (gap < 12) {
       const pulse = 0.7 + Math.sin(state.elapsed * 8) * 0.3;
       text('!', 4, -156, 30, `rgba(255,70,50,${pulse})`, 'center', '900');
@@ -1657,15 +1479,9 @@ export function createRenderer(canvas) {
     context.restore();
   }
 
-  // ---- particles, leaves, vignette ----
-  // Four kinds, each with its own shape so the burst reads as what it
   // is instead of a scatter of grey dots: dust is a soft two-tone
-  // puff that grows as it fades, feathers are brown teardrops with a
-  // pale tip and a quill line, embers are rising flame tongues drawn
-  // additively so they glow, and gold sparkles are four-point stars.
   function drawParticles(state) {
     let drawn = 0; // MAX_DRAW_PARTICLES bound, shared by both passes
-    // Additive pass first: embers and sparkles glow against sky and
     // ground alike instead of sitting on top as flat discs.
     context.save();
     context.globalCompositeOperation = 'lighter';
@@ -1677,8 +1493,6 @@ export function createRenderer(canvas) {
       if (p.kind === 2) { // embers — a rising flame tongue
         // An ember only burns above a live oven. If its oven was hit
         // or smashed away, the flame dies with it instead of hanging
-        // in mid-air behind the farmer; a passed oven's embers fade
-        // with it at the same 0.28 the oven itself fades to.
         let ovenAlpha = 0;
         for (const e of state.entities) {
           if (!e.active || e.kind !== KIND_OVEN) continue;
@@ -1693,7 +1507,6 @@ export function createRenderer(canvas) {
         const ea = a * ovenAlpha;
         const h = p.size * (2.6 + (1 - a) * 1.8);
         // Ember glow as a sprite: the same radial circle the gradient
-        // painted (centre p.y - h*0.4, radius h), clipped to the old
         // flame ellipse, alpha from globalAlpha — no gradient object
         // and no template strings per ember per frame.
         context.save();
@@ -1703,7 +1516,6 @@ export function createRenderer(canvas) {
         context.clip();
         context.drawImage(emberSprite, p.x - h, p.y - h * 0.4 - h, h * 2, h * 2);
         context.restore();
-        // Bright core so the flame reads even at contact-sheet size.
         context.fillStyle = `rgba(255,240,170,${0.9 * ea})`;
         context.beginPath();
         context.arc(p.x, p.y - h * 0.25, Math.max(2, p.size * 0.45), 0, Math.PI * 2);
@@ -1732,7 +1544,6 @@ export function createRenderer(canvas) {
       const a = clamp(p.life / p.max, 0, 1);
       if (p.kind === 0) { // dust — soft puff, pale core, grows as it fades
         const r = p.size * (1.6 - a * 0.6);
-        // A fainter outer halo, so the puff feathers into the air
         // instead of ending on a hard round edge.
         context.fillStyle = `rgba(214,178,120,${a * 0.22})`;
         context.beginPath();
@@ -1792,23 +1603,13 @@ export function createRenderer(canvas) {
     context.restore();
   }
 
-  // ---- HUD ----
   function drawHud(state, best, screen) {
     const stage = STAGES[state.stage];
     // The bar is OPAQUE now, not 0.72 alpha: a translucent bar let the
-    // sky show through as smudges — clouds behind it read as grey
-    // patches on the bar, and on the end frame the fireworks glow
-    // behind it pushed one stretch of the bar to R=133 against R=76
-    // elsewhere (std 22.9 in the plain bar zone, measured off the
-    // screenshot). At contact-sheet size that reads as a dirty bar.
-    // Opaque, the bar is one flat dark band in all four frames, and
     // the birds that used to show faintly through it simply pass
-    // behind it, as they should.
     pill(14, 12, 1260, 66, 14, '#150b02', 'rgba(242,193,78,0.55)');
-    // Score, big and left.
     text('SCORE', 34, 34, 15, PALETTE.muted, 'left', '800');
     text(String(Math.floor(state.score)), 34, 66, 34, PALETTE.text, 'left', '900');
-    // Distance progress bar in the middle, with stage ticks.
     const barX = 300, barW = 620, barY = 26;
     text('ESCAPE', barX, 34, 15, PALETTE.muted, 'left', '800');
     pill(barX, barY + 12, barW, 16, 8, 'rgba(255,255,255,0.16)');
@@ -1819,7 +1620,6 @@ export function createRenderer(canvas) {
       context.fillStyle = 'rgba(255,246,224,0.9)';
       context.fillRect(tx - 1, barY + 10, 2, 20);
     }
-    // Turkey and farmer markers ride ON TOP of the bar as solid
     // triangles — emoji at 16 px turned to mush when the sheet shrinks.
     // They straddle the bar's top edge, clear of the ESCAPE label above.
     const tx = barX + barW * prog;
@@ -1836,18 +1636,11 @@ export function createRenderer(canvas) {
       context.fill();
       context.stroke();
     }
-    // When the chase is tight the two markers would sit on each other:
-    // nudge the farmer's a little to the left so both still read.
     marker(tx, '#ffd23e');
     marker(Math.abs(tx - fxm) < 16 ? fxm - 14 : fxm, '#ff5a3c');
     text(`${Math.floor(state.distance)}m / ${TOTAL_DISTANCE}m`, barX + barW / 2, 66, 17, PALETTE.text, 'center', '700');
-    // Hearts on the right — hidden on the end screen: the run is
-    // over, so the lives left mean nothing there, and the headline
-    // owns the frame, so the hearts are clutter. They stay on every
-    // screen where the chase is still live. On the end screen the
     // same slot gets a gold rank pill instead: without it the top
     // bar's right end is an empty black hole (the only frame where
-    // the HUD is visibly incomplete at contact-sheet size).
     if (screen !== SCREEN_OVER) {
       text('LIVES', 1150, 34, 15, PALETTE.muted, 'left', '800');
       for (let i = 0; i < LIVES; i += 1) {
@@ -1869,7 +1662,6 @@ export function createRenderer(canvas) {
       pill(1136, 36, 130, 30, 10, 'rgba(255,210,62,0.95)');
       text(state.escaped ? '★ FREE BIRD' : '★ CAUGHT', 1201, 56, 15, '#3a2400', 'center', '900');
     }
-    // COMBO pill bounces per pickup, gold at the x5 cap.
     if (state.combo >= 2) {
       const bp = 1 + 0.3 * Math.max(0, state.comboPop) / 0.22;
       const gold = state.combo >= PICKUP.comboMax;
@@ -1877,21 +1669,17 @@ export function createRenderer(canvas) {
         gold ? 'rgba(255,210,62,0.95)' : 'rgba(255,122,30,0.9)');
       text(`COMBO x${state.combo}`, 105, 110, 20, gold ? '#3a2400' : '#fff6e0', 'center', '900');
     }
-    // Stamina bar, bottom left, with a dash hint.
     pill(24, 428, 220, 14, 7, 'rgba(20,10,2,0.6)');
     pill(24, 428, Math.max(10, 220 * state.player.stamina / TURKEY.staminaMax), 14, 7, hudStamGrad);
     text('DASH — SHIFT', 254, 440, 16, 'rgba(255,246,224,0.9)', 'left', '700');
     if (state.player.shield) text('🛡 SHIELD', 24, 412, 16, '#fff', 'left', '800');
     if (state.player.pumpkin > 0) text(`★ GOLDEN ${Math.ceil(state.player.pumpkin)}s`, 24, 392, 18, '#ffd23e', 'left', '900');
-    // Stage name, small, bottom right.
     text(`${stage.name}  •  BEST ${Math.max(best, Math.floor(state.score))}`, 1256, 440, 16, 'rgba(255,246,224,0.9)', 'right', '700');
-    // Flash message, centre.
     if (state.flashTimer > 0 && state.flash) {
       const a = clamp(state.flashTimer, 0, 1);
       pill(390, 92, 500, 44, 12, `rgba(20,10,2,${0.75 * a})`, `rgba(242,193,78,${a})`);
       text(state.flash, 640, 122, 22, `rgba(255,246,224,${a})`, 'center', '900');
     }
-    // Stage banner, big and fading.
     if (state.bannerTimer > 0 && state.banner) {
       const a = clamp(state.bannerTimer / 1.2, 0, 1);
       text(state.banner, 640, 168, 56, `rgba(255,246,224,${a})`, 'center', '900');
@@ -1899,9 +1687,7 @@ export function createRenderer(canvas) {
     }
   }
 
-  // ---- panels ----
   function drawTitle(state, best) {
-    // A dark gradient at the top and bottom so the text reads over the scene.
     context.fillStyle = titleGrad;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
     // The whole title text block sits 8 px higher (kicker 64, title 132,
@@ -1915,7 +1701,6 @@ export function createRenderer(canvas) {
     text('TURKEY RUN!', 640, 132, 88, '#fff6e0', 'center', '900');
     context.restore();
     // The subtitle sits on a dark pill now, not bare white on the
-    // orange sky: at contact-sheet size the white text went grey and
     // tired against the bright sky. The pill is 680 px wide — the
     // line measures ~650 px at 24 px, so the text sits inside it
     // with ~15 px to spare each side (the first version was 600 px
@@ -1924,8 +1709,6 @@ export function createRenderer(canvas) {
     // (bottom y=175, panel top y=180).
     pill(300, 141, 680, 34, 12, 'rgba(20,8,2,0.55)');
     text('Escape the farm. Dodge the oven. Outrun the farmer.', 640, 168, 24, '#ffe9b0', 'center', '700');
-    // Four lines now (was three): ←/→ join line 1, the high-knife-
-    // plus-fence answer is line 3, pickups drop to line 4. Panel
     // 88->100 (bottom 280); the turkey's tail top is ~y295 at
     // x<=1030, so it stays ~15 px clear. Lines 202/224/246/268.
     pill(250, 180, 780, 100, 16, PALETTE.panel, PALETTE.panelEdge);
@@ -1935,13 +1718,10 @@ export function createRenderer(canvas) {
     text('Corn = combo  •  Golden pumpkin = untouchable  •  Feather = shield', 640, 268, 19, PALETTE.muted, 'center', '700');
     if (best > 0) text(`BEST ESCAPE  ${best}`, 640, 314, 20, '#ffd23e', 'center', '900');
     const blink = Math.floor(state.elapsed * 2) % 2 === 0;
-    // CTA sat on the title oven's flames and OVEN! label: near-opaque
-    // pill (0.55 still let the bright label ghost through).
     if (blink) pill(390, 327, 500, 41, 12, 'rgba(20,8,2,0.92)');
     if (blink) text('▶  PRESS SPACE OR CLICK TO RUN', 640, 354, 26, '#fff6e0', 'center', '900');
     // The closing line sits 10 px lower than before (y=462): the
     // turkey's tail fan used to end only ~47 px above it, and the line
-    // reads as crowded under the bird. Now the tail has room to
     // breathe, and the line still clears the bottom edge by ~14 px.
     // It is 18 px, not 16: at contact-sheet size 16 px renders as
     // ~8 px, the smallest text on the title, and it is the only line
@@ -1950,7 +1730,6 @@ export function createRenderer(canvas) {
     // 18 px, still well inside the frame on its dark ground.
     text('A 1,500 m dash through the farmyard, the woods, the riverbank — to the freedom fence.', 640, 462, 18, 'rgba(255,246,224,0.9)', 'center', '700');
     // Foreground corners, so the bottom of the title is not empty stage:
-    // a pumpkin pile on the left, a fence run and a hay bale on the
     // right. The pile sits clear of the farmer (left edge) with room to
     // breathe — it used to crowd his boots — and clear of the turkey.
     drawPumpkin(152, FIELD.groundY - 6, 26);
@@ -1959,11 +1738,8 @@ export function createRenderer(canvas) {
     drawFenceRun(1150, FIELD.groundY, STAGES[state.stage]);
     drawHayBale(1218, FIELD.groundY, 0.9);
     drawPumpkin(1096, FIELD.groundY - 4, 16);
-    // Title knife in flight below the panel (aim 0, at the bird).
     // t = 0 keeps the blade level. Raised and pulled left (425,70 ->
     // 405,96): the blade used to cross the CTA's opening words, and
-    // its forward lines grazed the BEST line; now it sits in the
-    // open band between panel (bottom 280) and CTA (top ~335).
     drawKnife(405, 96, 0, 1, 0);
   }
 
@@ -1982,31 +1758,22 @@ export function createRenderer(canvas) {
     context.fillRect(0, 0, FIELD.width, FIELD.height);
     if (escaped) {
       // Golden fireworks flanking the headline (two bursts, not one
-      // ring centred on it — the old ring put dots across the subtitle
       // lines). 12 dots each, 8–12 px, gold/orange/white, with cross
       // sparkles; clear of the HUD (dots below y≈105), the subtitle
-      // (bursts at x 90–270 and 1010–1190, text lives 400–880) and the
-      // score panel (dots above y≈195).
       const glow = context.createRadialGradient(640, 120, 10, 640, 120, 260);
       glow.addColorStop(0, 'rgba(255,190,60,0.5)');
       glow.addColorStop(1, 'rgba(255,190,60,0)');
       context.fillStyle = glow;
       // The rect must cover the whole gradient radius (260): the old
-      // 520x320 rect cut it at 160 from centre, ~0.19 alpha, a hard
       // horizontal edge at y=280 across the frame.
       context.fillRect(380, -140, 520, 520);
       for (const [bcx, bcy] of [[180, 150], [1100, 150]]) {
-        // A soft glow behind each burst, so the dots read as one
         // explosion of light instead of flat coloured bubbles.
         const bg = context.createRadialGradient(bcx, bcy, 6, bcx, bcy, 95);
         bg.addColorStop(0, 'rgba(255,190,60,0.30)');
         bg.addColorStop(1, 'rgba(255,190,60,0)');
         context.fillStyle = bg;
         context.fillRect(bcx - 95, bcy - 95, 190, 190);
-        // Radial streaks from the burst centre first, then the dots
-        // on top: the old bursts were dots alone, and at half size
-        // they read as scattered bubbles floating over the headline.
-        // Eight short rays make each cluster read as one explosion.
         for (let i = 0; i < 8; i += 1) {
           const a = (i / 8) * Math.PI * 2 + state.elapsed * 0.25;
           const r0 = 18 + (i % 2) * 8;
@@ -2027,7 +1794,6 @@ export function createRenderer(canvas) {
           context.beginPath();
           context.arc(fx, fy, 8 + (i % 3) * 2, 0, Math.PI * 2);
           context.fill();
-          // Cross sparkle on every third burst dot.
           if (i % 3 === 0) {
             context.strokeStyle = 'rgba(255,246,224,0.9)';
             context.lineWidth = 2.5;
@@ -2040,13 +1806,10 @@ export function createRenderer(canvas) {
           }
         }
       }
-      // Golden feathers drifting down through the fireworks — the
       // escape reads as a celebration, not just a headline. They fall
       // only in the outer thirds of the frame now: the old fall
-      // crossed the whole width, so a feather could land on the
       // subtitle or the re-run prompt. The centre column stays clear.
       // They start below y=90, so none ever sits on the HUD bar, and
-      // stay off the hero turkey: any feather whose centre would land
       // in the bird's box (x 240..460, y 225..410) is skipped.
       for (let i = 0; i < 8; i += 1) {
         const fx = (i < 4 ? 80 + i * 85 : 920 + (i - 4) * 85) + Math.sin(state.elapsed * 0.9 + i * 2.1) * 22;
@@ -2067,14 +1830,10 @@ export function createRenderer(canvas) {
         context.stroke();
         context.restore();
       }
-      // A tuft of verge grass and a couple of wildflowers on the bare
-      // stretch between the farmer and the freedom fence: that patch
       // of track used to sit empty while the cover's verge is dotted
-      // with grass and leaves, so the end frame now echoes the cover.
       // Only on the escape — the fence is at a fixed screen x here
       // (distance 1500), so the tufts can sit at fixed screen x too,
       // clear of the stamina bar below (top y=428) and the SHIELD
-      // label to the left.
       for (const [gx, gh, gc] of END_TUFTS) {
         context.strokeStyle = gc;
         context.lineWidth = 2.5;
@@ -2090,13 +1849,9 @@ export function createRenderer(canvas) {
       ellipse(150, 420, 3, 3, '#e86a1e');
       ellipse(196, 418, 3, 3, '#f2c14e');
       ellipse(226, 421, 6, 3.5, '#e8a13a');
-      // The two-line subtitle sits on a dark pill, like the title's
       // kicker and subtitle: bare white 22 px type on the pink
-      // sunset sky thinned out at contact-sheet size, and the pill
-      // is the same visual language as the title screen. The pill
       // (384..896 x 144..206) clears everything around it — the
       // ESCAPED! title ends above it, the score panel starts 4 px
-      // below it, the fireworks stay out at the sides, and even the
       // highest celebrate leap (seed 146's beak tip) stays ~4 px
       // clear of its bottom-left corner; the shipped seed 159's
       // hero head sits ~55 px below it.
@@ -2105,14 +1860,11 @@ export function createRenderer(canvas) {
       text('The turkey made it past the freedom fence —', 640, 172, 22, PALETTE.text, 'center', '700');
       text('no Thanksgiving dinner tonight.', 640, 196, 22, PALETTE.text, 'center', '700');
     } else {
-      // Same subtitle pill as the escape branch: the caught lines sit
-      // on the same pink sky at the same spot.
       pill(384, 144, 512, 62, 12, 'rgba(20,8,2,0.5)');
       text('CAUGHT FOR DINNER', 640, 136, 76, '#ff5a3c', 'center', '900');
       text('The farmer finally got his hands on you…', 640, 172, 22, PALETTE.text, 'center', '700');
       text('the oven was already warm.', 640, 196, 22, PALETTE.text, 'center', '700');
     }
-    // The score panel sits to the RIGHT of centre, so the turkey at the
     // freedom fence (screen x ~330) is fully visible in the empty space
     // on the left — before, the centred panel covered half the bird.
     pill(470, 210, 460, 170, 18, PALETTE.panel, PALETTE.panelEdge);
@@ -2124,26 +1876,20 @@ export function createRenderer(canvas) {
     else text('RANK: SUNDAY ROAST', 700, 350, 18, '#ffd23e', 'center', '900');
     // Dark pill under the re-run prompt and 8 px lower than before:
     // it used to sit bare over the freedom fence pickets (and a
-    // passing knife could cross it), so at half size the white text
     // thinned out against the pale fence. The pill ends at y=416,
     // still 12 px clear of the stamina bar at y=428.
     // Always shown, never blinking: the blink read the frozen
-    // elapsed, so about half of all deaths hid the prompt entirely.
     pill(435, 384, 530, 32, 16, 'rgba(30,18,8,0.8)', 'rgba(255,210,62,0.5)');
     text('▶  PRESS SPACE OR CLICK TO RUN AGAIN  (R)', 700, 407, 22, '#fff6e0', 'center', '900');
   }
 
-  // ---- one frame ----
   function drawField(state, screen) {
     const stage = STAGES[state.stage];
-    // Play farmyard goes cool (COOL) so the contact sheet's top row
     // is not one orange block twice; title/danger/end are untouched.
-    // Turkey 1.12x in play, 1.30x on the title (moved right of the
     // panel, centre x 1040, dx +679: head top ~y270 clears the panel
     // right edge x=1030, beak ~1105 stays ~25 px clear of the barn
     // roof ~1130), 1.8x leaping on the escape screen (head top ~y257,
     // ~46 px clear of the subtitle pill; beak ~x427, ~43 px clear of
-    // the score panel). All clearances measured off screenshots.
     const escaped = screen === SCREEN_OVER && state.escaped;
     const turkeyScale = screen === SCREEN_TITLE ? 1.30 : escaped ? 1.8 : 1.12;
     const turkeyDx = screen === SCREEN_TITLE ? 679 : 0;
@@ -2153,11 +1899,7 @@ export function createRenderer(canvas) {
     drawHills(state, view, screen);
     drawGround(state, view, screen);
     const t = state.elapsed;
-    // Pickups and hazards, in world order. Anything the turkey has
-    // already run past fades to a ghost of itself: a passed oven used
-    // to sit right on top of the farmer at the left edge and hide half
     // of him. Faded, the farmer always reads; the hazard ahead stays
-    // at full strength, so the eye goes to the danger that matters.
     for (const e of state.entities) {
       if (!e.active || e.taken) continue;
       const sx = TURKEY_X + (e.x - state.distance) * PX_PER_M;
@@ -2172,21 +1914,16 @@ export function createRenderer(canvas) {
       else if (e.kind === KIND_PUMPKIN) drawGoldenPumpkin(sx, e.y, t);
       else if (e.kind === KIND_FEATHER) drawFeatherPickup(sx, e.y, t);
       else if (e.kind === KIND_KNIFE) {
-        // A knife that has already flown past the turkey is a spent
         // threat: it can never come back and hit the bird (knives
         // only fly right, faster than the turkey), so it fades out
         // instead of lingering as a lone blade on the right of the
-        // frame. A knife still approaching or level with the turkey
         // is always at full strength. The fade never touches the
         // gameplay random stream and never changes a collision: hits
         // are only checked while |d| < 1 m, where alpha is 1.
         const kd = e.x - state.distance;
         const ka = kd > 8 ? clamp(1 - (kd - 8) / 20, 0, 1) : 1;
-        // On the escape screen a knife left of the score panel is spent:
-        // it lies dropped flat on the ground (same x, blade right, no spin
         // or trail) instead of a spinning blade cutting the FREEDOM label.
         // Knives at/right of the panel (sx >= 470) keep flying.
-        // A far knife closing on the play screen gets forward lines along
         // the knife-to-turkey line; a close one keeps the true trail only.
         let aim;
         if (screen === SCREEN_PLAY && ka === 1) {
@@ -2201,16 +1938,12 @@ export function createRenderer(canvas) {
       }
       if (passed) context.restore();
     }
-    // Title only: warm light behind the bird, so it lifts off the
-    // near hill (same browns as the body). gx follows turkeyDx.
     if (screen === SCREEN_TITLE) {
       const gx = TURKEY_X + TURKEY.width / 2 + turkeyDx;
       const gy = FIELD.groundY - 55;
       context.fillStyle = titleGlowGrad;
       context.fillRect(gx - 170, gy - 170, 340, 340);
     }
-    // Escape only: a warm pool behind the hero turkey so the brown bird
-    // reads against the dark-purple hill (r 210, bird's centre); drawn
     // before turkey/farmer, under the later score panel and pill.
     if (escaped) {
       const gx = TURKEY_X + TURKEY.width / 2;
@@ -2219,7 +1952,6 @@ export function createRenderer(canvas) {
       context.fillRect(gx - 210, gy - 210, 420, 420);
     }
     drawTurkey(state, turkeyScale, escaped, turkeyDx);
-    // Pickup pop: gold ring + payoff text at the bird, 0.35 s.
     if (state.pop > 0 && screen === SCREEN_PLAY) {
       const pk = 1 - state.pop / 0.35;
       const pcx = TURKEY_X + TURKEY.width / 2 + turkeyDx;
@@ -2234,8 +1966,6 @@ export function createRenderer(canvas) {
       text(plabel, pcx, pcy - 52 - pk * 22, 22, '#ffd23e', 'center', '900');
     }
     drawFarmer(state, escaped ? 0.9 : 1.22, screen);
-    // Haystacks stand in front, so a hiding turkey really disappears.
-    // A passed haystack fades with the rest, for the same reason: the
     // farmer at the left edge must never hide behind one.
     for (const e of state.entities) {
       if (!e.active || e.kind !== KIND_HAYSTACK) continue;
@@ -2255,9 +1985,7 @@ export function createRenderer(canvas) {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.fillStyle = PALETTE.backdrop;
     context.fillRect(0, 0, canvas.width, canvas.height);
-    // Knife-hit shake + white hit flash, play only: both are functions
     // of elapsed/state timers, so the same run paints the same frame,
-    // and neither can freeze onto the end screen (step() stops there).
     const shx = screen === SCREEN_PLAY && state.shake > 0 ? Math.sin(state.elapsed * 71) * 5 * state.shake : 0;
     const shy = screen === SCREEN_PLAY && state.shake > 0 ? Math.cos(state.elapsed * 63) * 4 * state.shake : 0;
     context.setTransform(view.scale, 0, 0, view.scale, view.x + shx * view.scale, view.y + shy * view.scale);
@@ -2268,13 +1996,9 @@ export function createRenderer(canvas) {
     }
     if (screen === SCREEN_TITLE) drawTitle(state, best);
     else if (screen === SCREEN_PAUSED) { drawHud(state, best, screen); drawPaused(); }
-    // Over screen: the celebration is drawn FIRST and the HUD last.
     // The end frame's gold glow and dim overlay used to paint over
-    // the HUD bar (the bar measured R std 29.2 in its plain zone even
-    // after the bar went opaque), and the headline's cap top sat at
     // y=75, 3 px under the bar's bottom edge — so the headline and
     // subtitle moved down 4 px as well, and the HUD is now the
-    // topmost layer on every screen, identical in all four frames.
     else if (screen === SCREEN_OVER) { drawOver(state, best, state.escaped); drawHud(state, best, screen); }
     else drawHud(state, best, screen);
   }
