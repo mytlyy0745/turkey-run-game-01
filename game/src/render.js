@@ -900,10 +900,8 @@ export function createRenderer(canvas) {
     context.drawImage(featherGlowSprite, sx - 30, cy - 30, 60, 60);
   }
 
-  // Carving knife in flight: thick blade + white halo under a dark edge
-  // so it reads against sky and ground at half size; ghost blades and a
-  // white speed streak trail behind it (knives fly right). Spent knives
-  // fade out (alpha 1 until 8 m past the turkey, 0 by 28 m).
+  // Carving knife in flight: thick blade, white halo under a dark edge,
+  // ghost blades + white speed streak behind (knives fly right).
   function drawKnife(sx, y, t, alpha, aim) {
     const a = alpha === undefined ? 1 : alpha;
     const cy = FIELD.groundY - y;
@@ -1944,6 +1942,11 @@ export function createRenderer(canvas) {
     drawFenceRun(1150, FIELD.groundY, STAGES[state.stage]);
     drawHayBale(1218, FIELD.groundY, 0.9);
     drawPumpkin(1096, FIELD.groundY - 4, 16);
+    // Title knife in flight below the panel (aim 0, at the bird):
+    // the title had an oven but no knife, so the core threat never
+    // appeared. t = 0 keeps the blade level (a spinning blade in a
+    // still title reads as tumbling). Clear of panel, BEST, barn, oven.
+    drawKnife(400, 70, 0, 1, 0);
   }
 
   function drawPaused() {
