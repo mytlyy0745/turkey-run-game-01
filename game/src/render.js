@@ -412,10 +412,10 @@ export function createRenderer(canvas) {
       ellipse(shx + 6, sby - 18, 4, 3, stage.leaf);
       ellipse(shx + 16, sby - 14, 3.5, 2.5, stage.leaf);
     }
-    // Right-band midground dressing (play only): a second barn, oak,
+    // Right-band midground dressing (play+end): a second barn, oak,
     // shrub, fence and bale ride the ridge maths, drawn only at x 700..1280
     // so the turkey/knife/OVEN! label (all left of x=520) are never covered.
-    if (screen === SCREEN_PLAY) {
+    if (screen === SCREEN_PLAY || screen === SCREEN_OVER) {
       const inBand = (x) => x >= 700 && x <= 1280;
       // Second barn on the far ridge, a little smaller than the pair.
       const b2x = ((678 - scroll * 0.12) % (FIELD.width + 420) + FIELD.width + 420) % (FIELD.width + 420) - 360;
