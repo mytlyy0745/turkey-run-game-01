@@ -15,6 +15,10 @@ import { createRenderer, SCREEN_OVER, SCREEN_PAUSED, SCREEN_PLAY, SCREEN_TITLE }
 import { stageShot } from './shots.js';
 
 const MAX_FRAME = 0.25;
+const MAX_STEPS = 5; // per frame: after a hitch, drop the backlog instead of
+// catching up in one long burst (spiral-of-death guard). The world only
+// ever sees fixed STEPs, so a dropped backlog costs game time, never
+// determinism — pilots call step() directly and are unaffected.
 
 const params = new URLSearchParams(window.location.search);
 const shot = params.get('shot');
@@ -62,6 +66,31 @@ function runGame() {
   let accumulator = 0;
   let last = performance.now();
   let jumpQueued = false;
+  // Render interpolation (visual only, never fed back into the world):
+  // the previous step boundary's scroll/jump/gap/elapsed, so a frame
+  // drawn between two fixed steps can show where the run is *now*
+  // instead of the last step — smooth on 120 Hz displays, identical
+  // output on 60 Hz (alpha ~ 0) and in screenshots (runShot never
+  // comes through here). Reused objects: no allocation per frame.
+  const prev = { distance: 0, elapsed: 0, y: 0, gap: 24, runPhase: 0, anim: 0 };
+  const viewPlayer = {};
+  const viewFarmer = {};
+  const view = {};
+  function renderView() {
+    const alpha = accumulator >= STEP ? 0 : accumulator / STEP;
+    Object.assign(view, world.state);
+    Object.assign(viewPlayer, world.state.player);
+    Object.assign(viewFarmer, world.state.farmer);
+    view.player = viewPlayer;
+    view.farmer = viewFarmer;
+    view.distance = prev.distance + (world.state.distance - prev.distance) * alpha;
+    view.elapsed = prev.elapsed + (world.state.elapsed - prev.elapsed) * alpha;
+    viewPlayer.y = prev.y + (world.state.player.y - prev.y) * alpha;
+    viewPlayer.runPhase = prev.runPhase + (world.state.player.runPhase - prev.runPhase) * alpha;
+    viewFarmer.gap = prev.gap + (world.state.farmer.gap - prev.gap) * alpha;
+    viewFarmer.anim = prev.anim + (world.state.farmer.anim - prev.anim) * alpha;
+    renderer.draw(view, screen, best);
+  }
 
   function announce(message) {
     status.textContent = message;
@@ -140,15 +169,24 @@ function runGame() {
     accumulator += Math.min((now - last) / 1000, MAX_FRAME);
     last = now;
     handleActions();
+    prev.distance = world.state.distance;
+    prev.elapsed = world.state.elapsed;
+    prev.y = world.state.player.y;
+    prev.gap = world.state.farmer.gap;
+    prev.runPhase = world.state.player.runPhase;
+    prev.anim = world.state.farmer.anim;
     if (screen === SCREEN_TITLE || screen === SCREEN_PLAY) {
-      while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY)) {
+      let steps = 0;
+      while (accumulator >= STEP && (screen === SCREEN_TITLE || screen === SCREEN_PLAY) && steps < MAX_STEPS) {
         step();
         accumulator -= STEP;
+        steps += 1;
       }
+      if (accumulator >= STEP) accumulator = 0;
     } else {
       accumulator = 0;
     }
-    renderer.draw(world.state, screen, best);
+    renderView();
   }
 
   document.addEventListener('visibilitychange', () => {
