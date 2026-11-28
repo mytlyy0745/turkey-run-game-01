@@ -909,18 +909,18 @@ export function createRenderer(canvas) {
     // Ghost blades: afterimages of the spin, fading with distance.
     // Same thickened shape as the blade itself, so they read as
     // afterimages of this blade, not a thinner one behind it.
-    for (const [off, ga] of [[-36, 0.3], [-68, 0.15]]) {
+    for (const [off, ga] of [[-42, 0.3], [-80, 0.15]]) {
       context.save();
       context.translate(sx + off, cy);
       context.rotate(spin);
       context.globalAlpha = ga * a;
       context.fillStyle = PALETTE.knifeBlade;
       context.beginPath();
-      context.moveTo(-24, -11);
-      context.lineTo(18, -11);
-      context.lineTo(32, 0);
-      context.lineTo(18, 11);
-      context.lineTo(-24, 11);
+      context.moveTo(-28, -13);
+      context.lineTo(21, -13);
+      context.lineTo(38, 0);
+      context.lineTo(21, 13);
+      context.lineTo(-28, 13);
       context.closePath();
       context.fill();
       context.restore();
@@ -930,16 +930,16 @@ export function createRenderer(canvas) {
     context.strokeStyle = 'rgba(255,255,255,0.85)';
     context.lineWidth = 4;
     context.beginPath();
-    context.moveTo(sx - 38, cy);
-    context.lineTo(sx - 126, cy + 6);
+    context.moveTo(sx - 45, cy);
+    context.lineTo(sx - 149, cy + 6);
     context.stroke();
     context.strokeStyle = 'rgba(255,255,255,0.4)';
     context.lineWidth = 2;
     context.beginPath();
-    context.moveTo(sx - 38, cy - 10);
-    context.lineTo(sx - 100, cy - 4);
-    context.moveTo(sx - 38, cy + 10);
-    context.lineTo(sx - 100, cy + 16);
+    context.moveTo(sx - 45, cy - 10);
+    context.lineTo(sx - 118, cy - 4);
+    context.moveTo(sx - 45, cy + 10);
+    context.lineTo(sx - 118, cy + 16);
     context.stroke();
     // Forward speed lines, only when aim is given (far knife on the
     // play screen): short faint streaks ahead of the blade along the
@@ -947,8 +947,8 @@ export function createRenderer(canvas) {
     // instead of a blade lying at the farmer's feet.
     if (aim !== undefined) {
       const ca = Math.cos(aim), sa = Math.sin(aim);
-      for (const [po, len, al, lw] of [[-9, 52, 0.32, 2], [0, 68, 0.5, 3], [9, 52, 0.32, 2]]) {
-        const x0 = sx + ca * 36 - sa * po, y0 = cy + sa * 36 + ca * po;
+      for (const [po, len, al, lw] of [[-9, 62, 0.32, 2], [0, 82, 0.5, 3], [9, 62, 0.32, 2]]) {
+        const x0 = sx + ca * 42 - sa * po, y0 = cy + sa * 42 + ca * po;
         context.strokeStyle = `rgba(255,255,255,${al})`;
         context.lineWidth = lw;
         context.beginPath();
@@ -959,16 +959,16 @@ export function createRenderer(canvas) {
     }
     // The blade itself, ~35% longer and wider than before, and
     // ~35% thicker again in the finals details pass (half-height
-    // 8 -> 11). Length, position and spin are untouched.
+    // 8 -> 13). Length, position and spin are untouched.
     context.save();
     context.translate(sx, cy);
     context.rotate(spin);
     context.beginPath();
-    context.moveTo(-24, -11);
-    context.lineTo(18, -11);
-    context.lineTo(32, 0);
-    context.lineTo(18, 11);
-    context.lineTo(-24, 11);
+    context.moveTo(-28, -13);
+    context.lineTo(21, -13);
+    context.lineTo(38, 0);
+    context.lineTo(21, 13);
+    context.lineTo(-28, 13);
     context.closePath();
     // White halo first, then the fill over its inner half, then the
     // dark edge: ~1.5 px of white rim survives outside the dark line.
@@ -981,9 +981,9 @@ export function createRenderer(canvas) {
     context.lineWidth = 3;
     context.stroke();
     context.fillStyle = PALETTE.knifeHandle;
-    context.fillRect(-40, -11, 17, 22);
+    context.fillRect(-47, -13, 20, 26);
     context.fillStyle = 'rgba(20,20,30,0.5)';
-    context.fillRect(-40, -11, 4, 22);
+    context.fillRect(-47, -13, 5, 26);
     // The handle gets the same dark outline as the blade: in the
     // danger frame the handle crosses the oven's flame tongues, and
     // without an edge the dark wood melts into the orange flame.
@@ -994,10 +994,10 @@ export function createRenderer(canvas) {
     // the fourth butts against the blade, and a white rim there
     // would stripe across the blade's rear.
     context.beginPath();
-    context.moveTo(-23, -11);
-    context.lineTo(-40, -11);
-    context.lineTo(-40, 11);
-    context.lineTo(-23, 11);
+    context.moveTo(-27, -13);
+    context.lineTo(-47, -13);
+    context.lineTo(-47, 13);
+    context.lineTo(-27, 13);
     context.strokeStyle = 'rgba(255,255,255,0.95)';
     context.lineWidth = 6;
     context.stroke();
@@ -1955,7 +1955,7 @@ export function createRenderer(canvas) {
     // the title had an oven but no knife, so the core threat never
     // appeared. t = 0 keeps the blade level (a spinning blade in a
     // still title reads as tumbling). Clear of panel, BEST, barn, oven.
-    drawKnife(400, 70, 0, 1, 0);
+    drawKnife(425, 70, 0, 1, 0);
   }
 
   function drawPaused() {
