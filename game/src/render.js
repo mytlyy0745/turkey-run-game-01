@@ -74,7 +74,9 @@ export function createRenderer(canvas) {
     // Clouds drift on the wind — the high ones from the world, plus three
     // big soft ones lower down, so the middle of the sky is never empty.
     for (const c of state.clouds) {
-      context.fillStyle = 'rgba(255,248,230,0.85)';
+      // Warm underside shade: a cloud with a shaded belly reads as a
+      // volume, not a flat white sticker cut out of the sky.
+      ellipse(c.x, c.y + 9 * c.s, 48 * c.s, 11 * c.s, 'rgba(232,200,160,0.32)');
       ellipse(c.x, c.y, 52 * c.s, 17 * c.s, 'rgba(255,248,230,0.85)');
       ellipse(c.x - 34 * c.s, c.y + 7 * c.s, 34 * c.s, 13 * c.s, 'rgba(255,248,230,0.8)');
       ellipse(c.x + 36 * c.s, c.y + 8 * c.s, 36 * c.s, 12 * c.s, 'rgba(255,248,230,0.8)');
@@ -83,20 +85,15 @@ export function createRenderer(canvas) {
       const cx = ((i * 520 + state.elapsed * 9 - state.distance * 2) % (FIELD.width + 360) + FIELD.width + 360) % (FIELD.width + 360) - 180;
       const cy = 150 + i * 38;
       const cs = 1.15 + (i % 2) * 0.35;
-      context.fillStyle = 'rgba(255,240,214,0.5)';
+      ellipse(cx, cy + 9, 60 * cs, 12 * cs, 'rgba(232,200,160,0.28)');
       ellipse(cx, cy, 66 * cs, 18 * cs, 'rgba(255,240,214,0.5)');
       ellipse(cx - 44 * cs, cy + 7, 42 * cs, 13 * cs, 'rgba(255,240,214,0.45)');
       ellipse(cx + 46 * cs, cy + 8, 44 * cs, 12 * cs, 'rgba(255,240,214,0.45)');
     }
-    // A soft cloud that gathers beside the turkey at the top of a leap:
-    // the cover turkey jumps through a patch of sky that used to sit
-    // empty between the big cloud above and the low cloud below, so a
-    // faint cloud fades in with the jump itself (alpha follows the
-    // jump height) and fades out again on the ground — it is never
-    // there when the bird is running, so it never crowds the HUD, the
-    // title text or the end screen, and it never touches the gameplay
-    // random stream. It drifts slowly, so it never sits in exactly
-    // the same spot twice.
+    // A faint cloud that gathers beside the turkey at the top of a
+    // leap (alpha follows the jump height) and fades out again on
+    // the ground — never there while the bird is running, so it
+    // never crowds the HUD, the title text or the end screen.
     const jumpK = clamp(state.player.y / 140, 0, 1);
     if (jumpK > 0.02) {
       const jx = 495 + Math.sin(state.elapsed * 0.3) * 26;
@@ -107,11 +104,10 @@ export function createRenderer(canvas) {
       ellipse(jx + 36, jy + 7, 34, 10, `rgba(255,244,222,${ja * 0.9})`);
     }
     // One anchored cloud low in the middle band: the danger frame's
-    // mid-sky used to be a bare orange wash between the high clouds
-    // and the hills, and the play frame had the same gap on the
-    // right. It bobs gently instead of scrolling, like the high
-    // cloud by the sun, so it is there in every frame — except the
-    // title and the end screen, where the panels cover it.
+    // mid-sky used to be a bare orange wash, and the play frame had
+    // the same gap on the right. It bobs gently instead of scrolling,
+    // so it is there in every frame — except the title and the end
+    // screen, where the panels cover it.
     const mx = 620 + Math.sin(state.elapsed * 0.22) * 18;
     const my = 215 + Math.sin(state.elapsed * 0.4) * 4;
     ellipse(mx, my, 56, 14, 'rgba(255,244,222,0.38)');
@@ -127,27 +123,33 @@ export function createRenderer(canvas) {
     glow.addColorStop(0, stage.sunGlow);
     glow.addColorStop(1, 'rgba(255,200,90,0)');
     context.fillStyle = glow;
-    context.fillRect(sunX - 140, sunY - 140, 280, 280);
-    context.fillStyle = stage.sun;
+    // The rect must cover the whole gradient radius: at ±140 the glow
+    // was still ~0.16 alpha where the rect cut it, leaving a faint
+    // square edge in the sky — a vertical seam beside the sun in the
+    // danger frame. At ±190 the cut is at alpha 0.
+    context.fillRect(sunX - 190, sunY - 190, 380, 380);
+    // The disc is a gradient now, not a flat fill: a bright core
+    // fading to the stage sun colour at the rim, so it reads as a
+    // glowing ball instead of a flat pale coin.
+    const disc = context.createRadialGradient(sunX - 8, sunY - 10, 4, sunX, sunY, 36);
+    disc.addColorStop(0, '#fffdf0');
+    disc.addColorStop(1, stage.sun);
+    context.fillStyle = disc;
     context.beginPath();
     context.arc(sunX, sunY, 36, 0, Math.PI * 2);
     context.fill();
     // A warm rim around the disc: on the pale woods sky the pale sun
-    // used to wash out into a faint blob (disc #fff8d0 on sky
-    // #bfe3a1, barely any contrast), and on the farmyard orange it
-    // was only the halo holding it together. The rim defines the
-    // disc in every stage at contact-sheet size, without moving the
-    // sun or touching the HUD.
+    // used to wash out into a faint blob, and on the farmyard orange
+    // it was only the halo holding it together. The rim defines the
+    // disc in every stage at contact-sheet size.
     context.strokeStyle = 'rgba(255,140,30,0.55)';
     context.lineWidth = 4;
     context.beginPath();
     context.arc(sunX, sunY, 36, 0, Math.PI * 2);
     context.stroke();
     // The top-right corner by the sun used to sit empty, so a soft
-    // high cloud is anchored there, bobbing gently instead of
-    // crossing the whole sky, with one small bird gliding below it
-    // in the sun's glow — the corner reads as sky with life in it,
-    // not a blank patch, on the title and in every play frame.
+    // high cloud is anchored there, bobbing gently, with one small
+    // bird gliding below it in the sun's glow.
     const tx = 1175 + Math.sin(state.elapsed * 0.25) * 24;
     ellipse(tx, 40, 58, 14, 'rgba(255,244,222,0.6)');
     ellipse(tx - 38, 46, 34, 10, 'rgba(255,244,222,0.55)');
@@ -174,34 +176,19 @@ export function createRenderer(canvas) {
     context.lineWidth = 2.5;
     gull(dx, dy, 1, dflap);
     // Two birds crossing the evening sky, and a lower flock of three.
-    // Both paths stay inside the frame with room to breathe: the old
-    // pair started at x=-100, so on the title it hugged the left edge
-    // with one bird half-clipped, and the flock arrived hard against
-    // the right edge. Now the pair travels 90..1110 and the flock
-    // 90..1190, never touching either edge. The flock birds are
-    // staggered in height (0/-7/+5 px) so they never sit on one
-    // baseline as a row of eyes.
-    // The pair flies LOW, not high: at the old by=62 its strokes
-    // spanned y 45..76, entirely inside the HUD bar's band (the bar
-    // ends at y=78 and is opaque since round 16), so in every play
-    // frame the pair was invisible — only the title frame, which has
-    // no HUD bar, ever showed it. At by=102 the strokes span y
-    // 82..113: worst-case wing tip 82 clears the bar bottom by 4 px,
-    // and the pair sits in open sky above the turkey's head and the
-    // mid-sky clouds, so it reads in play, danger and title frames.
-    // The end screen used to be the exception: its ESCAPED! letters
-    // span y 85..165, so a pair at by=102 flies straight across the
-    // gold E — the first version of this change put two dark Vs on
-    // the E's top bar and counter, reading as smudges on the letter,
-    // not birds (cropped-zoom verified), so the pair stayed at the
-    // old by=62, hidden behind the HUD bar, through round 19.
-    // Round 20 finally gives it a band of its own, measured off the
-    // end frame: the subtitle pill ends at y=206, the score panel's
-    // right edge is x=820, the pale cloud bottom is ~y=235, the barn
-    // roof starts at x~1102 and the ridge crest sits at ~y=300 — so
-    // the open pink sky at x 850..1056, y ~244..274 is clear of
-    // everything (E, pill, panel, cloud, barn, ridge, fireworks),
-    // and the pair flies there at by=258 instead of hiding.
+    // Both paths stay inside the frame: the pair travels 90..1110
+    // and the flock 90..1190, never touching either edge. The flock
+    // birds are staggered in height (0/-7/+5 px) so they never sit
+    // on one baseline as a row of eyes.
+    // The pair flies at by=102, not 62: at 62 its strokes spanned
+    // y 45..76, entirely inside the HUD bar's band (bar ends y=78),
+    // so in every play frame the pair was invisible. At 102 the
+    // strokes span y 82..113 — worst-case wing tip 82 clears the
+    // bar bottom by 4 px. On the end screen the pair flies at by=258
+    // instead: the ESCAPED! letters span y 85..165, so a pair at 102
+    // would cross the gold E; the open pink sky at x 850..1056,
+    // y ~244..274 is clear of the E, pill, panel, cloud, barn,
+    // ridge and fireworks (measured off the end frame).
     const over = screen === SCREEN_OVER;
     const bx = over
       ? 850 + (state.elapsed * 20) % 160
@@ -223,7 +210,7 @@ export function createRenderer(canvas) {
     }
   }
 
-  function ridge(state, offset, amp, base, color, par) {
+  function ridge(state, offset, amp, base, color, par, haze) {
     context.fillStyle = color;
     context.beginPath();
     context.moveTo(0, FIELD.groundY);
@@ -236,12 +223,16 @@ export function createRenderer(canvas) {
     context.lineTo(FIELD.width, FIELD.groundY);
     context.closePath();
     context.fill();
+    // Atmospheric haze: the same ridge shape re-filled with a pale
+    // wash, so the far hills lighten toward the sky and sit further
+    // back than the near ones — depth, not three flat bands.
+    if (haze) { context.fillStyle = haze; context.fill(); }
   }
   function stateScroll(state) { return state.distance * PX_PER_M; }
 
   function drawHills(state, stage, screen) {
-    ridge(state, 0, 46, 340, stage.hillFar, 0.12);
-    ridge(state, 150, 38, 352, stage.hillMid, 0.18);
+    ridge(state, 0, 46, 340, stage.hillFar, 0.12, 'rgba(255,240,214,0.20)');
+    ridge(state, 150, 38, 352, stage.hillMid, 0.18, 'rgba(255,240,214,0.10)');
     ridge(state, 300, 30, 366, stage.hillNear, 0.25);
     // A red barn silhouette rides the far ridge — the farm reads at a
     // glance even before any fence or pumpkin scrolls past. The barns
@@ -255,8 +246,7 @@ export function createRenderer(canvas) {
     // always landed dead centre behind the instruction panel, with
     // only its bottom 22 px and white door poking out under the
     // panel's gold edge. Shifted, the two barns sit at x~190 and
-    // x~1170 — both fully clear of the panel (250..1030), one in the
-    // open sky left of it, one beside the right-hand fence. The
+    // x~1170 — both fully clear of the panel (250..1030). The
     // title phase is title-only: shifting the barns everywhere would
     // push one onto the danger frame's turkey and oven, and one
     // behind the end frame's score panel.
@@ -301,22 +291,19 @@ export function createRenderer(canvas) {
       ellipse(shx + 16, sby - 14, 3.5, 2.5, stage.leaf);
     }
     // Right-band midground dressing (finals round 21): the danger
-    // frame's right 2/3 used to be flat hill bands — one barn, one
-    // tree at the edge, bare green in between — so the frame read
-    // left-heavy against the farmer, turkey, oven and knife. A second
-    // barn, an oak, a second shrub, a fence run and a hay bale ride
-    // the same ridge maths at new phases, so they stay planted on the
-    // hill lines and scroll with the world; every one is drawn only
-    // when its screen x lands in the right band (700..1280), so the
-    // turkey, the knife and the OVEN! label — all left of x=520 in
-    // every staged play frame — can never be covered. Play screens
-    // only: the title and end screens keep their own compositions
-    // (their panels sit where this dressing would land). Pure
-    // functions of distance, so the gameplay random stream is never
-    // touched. Phases are tuned to the danger frame's scroll
-    // (655 m): barn ~760, oak ~900, shrub ~1150, bale ~1160, fence
-    // 724..980. Hills paint before entities, so an oven or its label
-    // always lands on top of this dressing, never behind it.
+    // frame's right 2/3 used to be flat hill bands, so the frame read
+    // left-heavy. A second barn, an oak, a second shrub, a fence run
+    // and a hay bale ride the same ridge maths at new phases and
+    // scroll with the world; every one is drawn only when its screen
+    // x lands in the right band (700..1280), so the turkey, the knife
+    // and the OVEN! label — all left of x=520 in every staged play
+    // frame — can never be covered. Play screens only: the title and
+    // end screens keep their own compositions. Pure functions of
+    // distance, so the gameplay random stream is never touched.
+    // Phases are tuned to the danger frame's scroll (655 m): barn
+    // ~760, oak ~900, shrub ~1150, bale ~1160, fence 724..980.
+    // Hills paint before entities, so an oven or its label always
+    // lands on top of this dressing, never behind it.
     if (screen === SCREEN_PLAY) {
       const inBand = (x) => x >= 700 && x <= 1280;
       // Second barn on the far ridge, a little smaller than the pair.
@@ -373,7 +360,7 @@ export function createRenderer(canvas) {
   }
 
   // ---- ground and mid scenery ----
-  function drawGround(state, stage) {
+  function drawGround(state, stage, screen) {
     const g = context.createLinearGradient(0, FIELD.groundY, 0, FIELD.height);
     g.addColorStop(0, stage.ground);
     g.addColorStop(1, stage.groundDark);
@@ -399,6 +386,13 @@ export function createRenderer(canvas) {
         else context.lineTo(x, y);
       }
       context.stroke();
+    }
+    // Sun dapples on the track: soft warm pools of light, scrolling
+    // with the world, so the dirt reads as sunlit instead of flat brown.
+    for (let i = 0; i < 8; i += 1) {
+      const wx = i * 397 + ((i * 113) % 90);
+      const sx = ((wx - scroll) % (FIELD.width + 200) + FIELD.width + 200) % (FIELD.width + 200) - 100;
+      ellipse(sx, FIELD.groundY + 52 + ((i * 29) % 18), 44 + (i % 3) * 14, 9, 'rgba(255,217,138,0.10)');
     }
     // Pebbles and fallen leaves on the track, scrolling with the world.
     const leafCols = ['#e8a13a', '#d94f30', '#f2c14e'];
@@ -472,6 +466,28 @@ export function createRenderer(canvas) {
         ellipse(sx - 12, gy - 14, 16, 10, stage.tree);
       }
     }
+    // Foreground grass along the very bottom edge: bigger, darker
+    // blades than the verge tufts, scrolling at full speed — a near
+    // layer, so the bottom of the frame stops reading as flat dirt.
+    // Title only skips it: the footer line sits at y=462 and the
+    // blades would strike through it. Tops stay >=452, clear of the
+    // stamina bar (ends 442) and the stage line (ends ~440).
+    if (screen !== SCREEN_TITLE) {
+      for (let i = 0; i < 12; i += 1) {
+        const wx = i * 173 + ((i * 67) % 50);
+        const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
+        const gy = FIELD.groundY + 70 + ((i * 31) % 8);
+        const h = 10 + (i % 3) * 4;
+        context.strokeStyle = 'rgba(46,32,10,0.55)';
+        context.lineWidth = 3;
+        context.beginPath();
+        context.moveTo(sx, gy);
+        context.lineTo(sx - 4, gy - h);
+        context.moveTo(sx, gy);
+        context.lineTo(sx + 5, gy - h + 2);
+        context.stroke();
+      }
+    }
     // The riverbank stage gets its water ribbon.
     if (state.stage === 2) {
       context.fillStyle = 'rgba(70,140,190,0.85)';
@@ -512,6 +528,9 @@ export function createRenderer(canvas) {
   }
 
   function drawPumpkin(x, gy, r) {
+    // Contact shadow on the dirt under the pumpkin, so it sits on
+    // the ground instead of floating a pixel above it.
+    ellipse(x, gy + r * 0.8, r * 0.9, 4, 'rgba(20,10,2,0.25)');
     context.fillStyle = '#e86e10';
     context.beginPath();
     context.ellipse(x, gy, r, r * 0.82, 0, 0, Math.PI * 2);
@@ -533,6 +552,8 @@ export function createRenderer(canvas) {
   }
 
   function drawHayBale(x, gy, s) {
+    // Contact shadow under the dome, so the bale sits on the dirt.
+    ellipse(x, gy + 2, 20 * s, 4, 'rgba(20,10,2,0.25)');
     context.fillStyle = '#d9a83e';
     context.beginPath();
     context.arc(x, gy - 20 * s, 20 * s, Math.PI, 0);
@@ -600,12 +621,18 @@ export function createRenderer(canvas) {
     glow.addColorStop(0, 'rgba(255,122,30,0.62)');
     glow.addColorStop(1, 'rgba(255,122,30,0)');
     context.fillStyle = glow;
-    context.fillRect(sx - 110, gy - 120, wPx + 220, 130);
+    // The rect must cover the whole gradient radius (165): the old
+    // 220x130 rect cut the glow at ~0.10 alpha, leaving a faint
+    // rectangular edge around the oven (visible in the cover crop).
+    context.fillRect(sx + wPx / 2 - 165, gy - 195, 330, 330);
     const halo = context.createRadialGradient(sx + wPx / 2, gy - 72, 4, sx + wPx / 2, gy - 72, 88);
     halo.addColorStop(0, 'rgba(255,150,50,0.4)');
     halo.addColorStop(1, 'rgba(255,150,50,0)');
     context.fillStyle = halo;
     context.fillRect(sx + wPx / 2 - 90, gy - 162, 180, 180);
+    // Contact shadow under the body, so the oven sits on the dirt
+    // instead of floating in its own glow.
+    ellipse(sx + wPx / 2, gy + 3, wPx * 0.55, 5, 'rgba(20,10,2,0.3)');
     // Body, chimney and glowing door.
     context.fillStyle = PALETTE.ovenBody;
     pill(sx, gy - 56, wPx, 56, 8, PALETTE.ovenBody);
@@ -1554,7 +1581,7 @@ export function createRenderer(canvas) {
         }
         if (ovenAlpha === 0) continue;
         const ea = a * ovenAlpha;
-        const h = p.size * (2.4 + (1 - a) * 1.8);
+        const h = p.size * (2.6 + (1 - a) * 1.8);
         const g = context.createRadialGradient(p.x, p.y, 0, p.x, p.y - h * 0.4, h);
         g.addColorStop(0, `rgba(255,220,110,${0.85 * ea})`);
         g.addColorStop(0.5, `rgba(255,122,30,${0.6 * ea})`);
@@ -1590,6 +1617,12 @@ export function createRenderer(canvas) {
       const a = clamp(p.life / p.max, 0, 1);
       if (p.kind === 0) { // dust — soft puff, pale core, grows as it fades
         const r = p.size * (1.6 - a * 0.6);
+        // A fainter outer halo, so the puff feathers into the air
+        // instead of ending on a hard round edge.
+        context.fillStyle = `rgba(214,178,120,${a * 0.22})`;
+        context.beginPath();
+        context.arc(p.x, p.y, r * 1.6, 0, Math.PI * 2);
+        context.fill();
         context.fillStyle = `rgba(214,178,120,${a * 0.55})`;
         context.beginPath();
         context.arc(p.x, p.y, r, 0, Math.PI * 2);
@@ -1623,7 +1656,7 @@ export function createRenderer(canvas) {
       context.save();
       context.translate(l.x, l.y);
       context.rotate(Math.sin(state.elapsed + l.ph) * 0.8);
-      context.fillStyle = 'rgba(232,161,58,0.85)';
+      context.fillStyle = l.s > 5 ? 'rgba(217,79,48,0.85)' : 'rgba(232,161,58,0.85)';
       context.beginPath();
       context.ellipse(0, 0, l.s, l.s * 0.55, 0, 0, Math.PI * 2);
       context.fill();
@@ -1838,22 +1871,28 @@ export function createRenderer(canvas) {
     context.fillStyle = escaped ? 'rgba(60,40,0,0.30)' : 'rgba(20,4,2,0.62)';
     context.fillRect(0, 0, FIELD.width, FIELD.height);
     if (escaped) {
-      // Golden fireworks of feathers over the freedom fence — bigger,
-      // with a warm glow behind the headline so it punches through.
-      // Two fat bursts flank the headline instead of one ring centred
-      // on it: the old ring put its dots right across the subtitle
-      // lines (a white dot sat on the word "dinner"), and its dots
-      // were small and pale. Each burst is 12 dots, 8–12 px, gold /
-      // orange / white, with cross sparkles — and both bursts sit
-      // clear of the HUD above (dots stay below y≈105), clear of the
-      // subtitle (x 90–270 and 1010–1190, the text lives x 400–880)
-      // and clear of the score panel below (dots stay above y≈195).
+      // Golden fireworks flanking the headline (two bursts, not one
+      // ring centred on it — the old ring put dots across the subtitle
+      // lines). 12 dots each, 8–12 px, gold/orange/white, with cross
+      // sparkles; clear of the HUD (dots below y≈105), the subtitle
+      // (bursts at x 90–270 and 1010–1190, text lives 400–880) and the
+      // score panel (dots above y≈195).
       const glow = context.createRadialGradient(640, 120, 10, 640, 120, 260);
       glow.addColorStop(0, 'rgba(255,190,60,0.5)');
       glow.addColorStop(1, 'rgba(255,190,60,0)');
       context.fillStyle = glow;
-      context.fillRect(380, -40, 520, 320);
+      // The rect must cover the whole gradient radius (260): the old
+      // 520x320 rect cut it at 160 from centre, ~0.19 alpha, a hard
+      // horizontal edge at y=280 across the frame.
+      context.fillRect(380, -140, 520, 520);
       for (const [bcx, bcy] of [[180, 150], [1100, 150]]) {
+        // A soft glow behind each burst, so the dots read as one
+        // explosion of light instead of flat coloured bubbles.
+        const bg = context.createRadialGradient(bcx, bcy, 6, bcx, bcy, 95);
+        bg.addColorStop(0, 'rgba(255,190,60,0.30)');
+        bg.addColorStop(1, 'rgba(255,190,60,0)');
+        context.fillStyle = bg;
+        context.fillRect(bcx - 95, bcy - 95, 190, 190);
         // Radial streaks from the burst centre first, then the dots
         // on top: the old bursts were dots alone, and at half size
         // they read as scattered bubbles floating over the headline.
@@ -1896,17 +1935,9 @@ export function createRenderer(canvas) {
       // only in the outer thirds of the frame now: the old fall
       // crossed the whole width, so a feather could land on the
       // subtitle or the re-run prompt. The centre column stays clear.
-      // And they start below y=90, so none ever sits on the HUD bar
-      // — one used to drift across the ESCAPE label in the end frame.
-      // They also stay off the hero turkey now: the bird owns the
-      // left-centre at 1.8x (head top ~y257, tail-fan top ~y253,
-      // beak ~x427, feet on y=400), and a feather drifting onto it reads
-      // as a stray white fleck on its back, not as celebration —
-      // seed 159's white i=3 feather sat at (315,300), right on the
-      // turkey's shoulder. Any feather whose centre would land in
-      // the bird's box (x 240..460, y 225..410) is skipped; the
-      // other seven still fall. The gold i=2 feather at (268,202)
-      // stays: it flies in open sky above the tail fan.
+      // They start below y=90, so none ever sits on the HUD bar, and
+      // stay off the hero turkey: any feather whose centre would land
+      // in the bird's box (x 240..460, y 225..410) is skipped.
       for (let i = 0; i < 8; i += 1) {
         const fx = (i < 4 ? 80 + i * 85 : 920 + (i - 4) * 85) + Math.sin(state.elapsed * 0.9 + i * 2.1) * 22;
         const fy = 90 + ((state.elapsed * 26 + i * 97) % 380);
@@ -2004,11 +2035,8 @@ export function createRenderer(canvas) {
     // the cover reads as cool daylight against the title's warm
     // sunset. The turkey, farmer, oven, trees, barn, sun and HUD
     // keep their colours (only sky/ground/far-hill/grass keys are
-    // overridden; tree/leaf/sun/accent are not). Title (same stage,
-    // SCREEN_TITLE), danger (woods) and end (freedom fence) are
-    // untouched: the override is gated on screen === SCREEN_PLAY and
-    // stage === 0. It also applies in live play in the farmyard —
-    // the cover IS the play screen — which is the intended look.
+    // overridden). Title, danger and end are untouched: the override
+    // is gated on screen === SCREEN_PLAY and stage === 0.
     // The turkey is drawn 12% bigger everywhere, and 30% bigger on
     // the title — and, since round 21, standing in the open sky
     // right of the instruction panel instead of underneath it
@@ -2022,25 +2050,21 @@ export function createRenderer(canvas) {
     // ~25 px clear of the right barn's roof (~1130), and the feet
     // stay clear of the foreground pumpkin at x=1096 (the body at
     // pumpkin height only reaches x~1039). The OVEN! label ends
-    // ~x920, the tail starts ~x975. Measured off the screenshot,
-    // not guessed — see the round-21 numbers in the commit.
-    // On the escape screen it is 80% bigger and leaping
-    // with its wings thrown wide: the end frame's hero used to stand
-    // behind the white fence pickets, smaller than the farmer at the
-    // left edge, and at 1.4x it still read as a supporting player —
-    // the judges' first priority for the finals is the end-frame
-    // turkey as the hero. At 1.8x it owns the left-centre of the
-    // frame, in front of the fence (drawn after the gate, as before).
-    // The scale pivots on the feet, and the clearances are measured
-    // off the 1.8x screenshot, not guessed: the head top sits
-    // ~y257 (snood tip 252), ~46 px clear of the subtitle pill
-    // bottom (206); the tail-fan top ~y253, ~47 px clear of the
-    // pill; the beak tip ~x427, ~43 px clear of the score panel's
-    // left edge (470); the tail's lowest tip passes ~4 px above the
-    // dropped knife (blade top y390 at x210..215), and the fan
-    // stays clear of the FREEDOM band (y 249..270) at its height.
-    // The farmer is drawn a touch smaller there, so he stops
-    // outshining the bird he failed to catch.
+    // ~x920, the tail starts ~x975. Measured off the screenshot.
+    // On the escape screen it is 80% bigger and leaping with its
+    // wings thrown wide: the end frame's hero used to stand behind
+    // the white fence pickets, smaller than the farmer at the left
+    // edge. At 1.8x it owns the left-centre of the frame, in front
+    // of the fence. The scale pivots on the feet, and the clearances
+    // are measured off the 1.8x screenshot: the head top sits ~y257
+    // (snood tip 252), ~46 px clear of the subtitle pill bottom
+    // (206); the tail-fan top ~y253, ~47 px clear of the pill; the
+    // beak tip ~x427, ~43 px clear of the score panel's left edge
+    // (470); the tail's lowest tip passes ~4 px above the dropped
+    // knife (blade top y390 at x210..215), and the fan stays clear
+    // of the FREEDOM band (y 249..270) at its height. The farmer is
+    // drawn a touch smaller there, so he stops outshining the bird
+    // he failed to catch.
     const escaped = screen === SCREEN_OVER && state.escaped;
     const turkeyScale = screen === SCREEN_TITLE ? 1.30 : escaped ? 1.8 : 1.12;
     const turkeyDx = screen === SCREEN_TITLE ? 679 : 0;
@@ -2053,7 +2077,7 @@ export function createRenderer(canvas) {
     } : stage;
     drawSky(state, view, screen);
     drawHills(state, view, screen);
-    drawGround(state, view);
+    drawGround(state, view, screen);
     const t = state.elapsed;
     // Pickups and hazards, in world order. Anything the turkey has
     // already run past fades to a ghost of itself: a passed oven used
