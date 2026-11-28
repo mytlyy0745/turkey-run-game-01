@@ -94,6 +94,7 @@ export function createWorld(random) {
     hides: 0, knivesDodged: 0, over: false, escaped: false,
     nextSpawnAt: 26, flash: '', flashTimer: 0, banner: '', bannerTimer: 0,
     speed: 0, // m/s this step, for the HUD and the farmer chase
+    shake: 0, hitFlash: 0, pop: 0, popKind: 0, comboPop: 0, // feel timers, decayed in step()
   };
 
   function reset() {
@@ -111,6 +112,7 @@ export function createWorld(random) {
     state.knivesDodged = 0; state.over = false; state.escaped = false;
     state.nextSpawnAt = 26; state.flash = ''; state.flashTimer = 0;
     state.banner = STAGES[0].name; state.bannerTimer = 2.6; state.speed = 0;
+    state.shake = 0; state.hitFlash = 0; state.pop = 0; state.popKind = 0; state.comboPop = 0;
   }
 
   function freeEntity() {
@@ -206,8 +208,11 @@ export function createWorld(random) {
     farmer.windup = 0.45;
   }
 
-  function hurt(events) {
+  function hurt(events, knifeHit) {
     if (player.invulnerable > 0 || player.pumpkin > 0) return events;
+    // Hit feedback only: white flash, plus shake for a knife hit.
+    state.hitFlash = 0.22;
+    if (knifeHit) state.shake = 1;
     if (player.shield) {
       player.shield = false;
       farmer.gap = Math.max(0, farmer.gap - FARMER.shieldCost);
@@ -237,8 +242,10 @@ export function createWorld(random) {
     state.corn += 1;
     state.combo = Math.min(PICKUP.comboMax, state.combo + 1);
     state.comboTimer = PICKUP.comboWindow;
+    state.comboPop = 0.22; // COMBO pill bounce
     if (state.combo > state.bestCombo) state.bestCombo = state.combo;
     state.score += PICKUP.cornPoints * state.combo;
+    state.pop = 0.35; state.popKind = 0; // pickup pop ring
     // Dropped kernels distract the farmer: every corn buys a little room.
     farmer.gap = Math.min(FARMER.gapMax, farmer.gap + 0.5);
     burst(TURKEY_X + 30, FIELD.groundY - 70 - player.y, 3, 6, 120, 140);
@@ -247,6 +254,11 @@ export function createWorld(random) {
   // input: { jump, dash, duck, left, right } — booleans this step.
   function step(dt, input, harmless) {
     let events = 0;
+    // Feel timers decay first, so none freezes on the end screen.
+    if (state.shake > 0) state.shake -= dt * 2.5;
+    if (state.hitFlash > 0) state.hitFlash -= dt;
+    if (state.pop > 0) state.pop -= dt;
+    if (state.comboPop > 0) state.comboPop -= dt;
     if (state.over || state.escaped) return events;
     state.elapsed += dt;
     const stage = Math.min(STAGES.length - 1, Math.floor(state.distance / STAGE_LEN));
@@ -269,6 +281,9 @@ export function createWorld(random) {
     // --- the turkey ---
     const onGround = player.y <= 0;
     player.ducking = !!input.duck && onGround && player.hiding <= 0;
+    // Jump buffering lives in input.js: pilots drive step() directly,
+    // so a buffer here moved the end pilot's lives 2 -> 4 and put a
+    // shield ring on the hero turkey. See input.js takeActions().
     if (input.jump && onGround && player.hiding <= 0) {
       player.vy = TURKEY.jumpVel;
       player.y = 0.1;
@@ -277,7 +292,7 @@ export function createWorld(random) {
     player.vy -= TURKEY.gravity * dt;
     player.y += player.vy * dt;
     if (player.y <= 0) {
-      if (player.vy < -500) { player.squash = 1; dust(); dust(); dust(); }
+      if (player.vy < -500) { player.squash = 1; dust(); dust(); dust(); dust(); dust(); }
       player.y = 0; player.vy = 0;
     }
     if (player.squash > 0) player.squash = Math.max(0, player.squash - dt * 3);
@@ -373,7 +388,7 @@ export function createWorld(random) {
         const knifeH = 26;
         if (Math.abs(e.x - state.distance) < 1.0 && overlaps(px, TURKEY.width, turkeyTop, turkeyBot - turkeyTop, knifeScreenX - 16, 34, knifeScreenY - knifeH / 2, knifeH)) {
           e.active = false;
-          events = hurt(events);
+          events = hurt(events, true); // knife hit: shake the frame
           if (events & EVENT_OVER) return events;
         }
         continue;
@@ -397,6 +412,7 @@ export function createWorld(random) {
             state.pumpkins += 1; player.pumpkin = PICKUP.pumpkinTime;
             farmer.gap = Math.min(FARMER.gapMax, farmer.gap + PICKUP.pumpkinGap);
             state.score += PICKUP.pumpkinPoints;
+            state.pop = 0.35; state.popKind = 1;
             state.flash = 'GOLDEN PUMPKIN! UNTOUCHABLE!';
             state.flashTimer = 1.6;
             burst(TURKEY_X + 30, FIELD.groundY - 80, 3, 14, 200, 200);
@@ -404,6 +420,7 @@ export function createWorld(random) {
           } else {
             state.feathers += 1; player.shield = true;
             state.score += 50;
+            state.pop = 0.35; state.popKind = 2;
             state.flash = 'FEATHER SHIELD!';
             state.flashTimer = 1.4;
             events |= EVENT_PICKUP;
