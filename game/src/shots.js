@@ -180,8 +180,7 @@ export function stageShot(name, world) {
     // prefer it over the plain highest leap. Seed 54's cover (round
     // 12) has a knife at head height and COMBO x4, but the bird is
     // jumping a fence with the ovens far down the road; seed 69's
-    // oven-under leap (35.9 s, 1110 pts, COMBO x5, knife 51 px off
-    // the beak, farmer 21 m back) tells the oven story instead.
+    // oven-under leap (35.9 s, 1110 pts, COMBO x5, farmer 21 m back) tells the oven story instead.
     let airOven = null;
     let airOvenY = 60;
     let fallback = null;
@@ -218,7 +217,7 @@ export function stageShot(name, world) {
     // of the HUD. Ties within 3 px prefer the higher score.
     // Danger seed 249 (not 19): same 16 px grazing geometry, but 249
     // scores 3585 (vs 3264), COMBO x2 (vs x0), 2 lives (vs 3). Seed 62
-    // (3352, stage 2 riverbank) was runner-up; its blue would change
+    // (stage 2 riverbank) was runner-up; its blue would change
     // the colour story and its combo is x0.
     let bestSnap = null;
     let bestDist = Infinity;
