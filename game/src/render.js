@@ -238,6 +238,17 @@ export function createRenderer(canvas) {
     ellipse(mx, my, 56, 14, 'rgba(255,244,222,0.38)');
     ellipse(mx - 38, my + 6, 36, 10, 'rgba(255,244,222,0.34)');
     ellipse(mx + 40, my + 7, 38, 10, 'rgba(255,244,222,0.34)');
+    // Second anchored cloud, low in the right mid-band under the sun:
+    // the play frame's sky right of the sun was a bare blue wash
+    // (sun glow only) and the scrolling clouds never park there at
+    // the shot moment. Same soft treatment as the mid cloud; the sun
+    // glow washes over it warm. It sits below the sun disc, clear
+    // of the turkey's flight, the OVEN! band and the hilltops.
+    const rx = 980 + Math.sin(state.elapsed * 0.19 + 1) * 16;
+    const ry = 238 + Math.sin(state.elapsed * 0.33 + 1) * 4;
+    ellipse(rx, ry, 52, 13, 'rgba(255,244,222,0.36)');
+    ellipse(rx - 36, ry + 6, 34, 10, 'rgba(255,244,222,0.32)');
+    ellipse(rx + 38, ry + 7, 36, 10, 'rgba(255,244,222,0.32)');
     // Low autumn sun with a warm halo, drawn AFTER the clouds so it
     // stays a bright disc instead of hiding behind one. Its centre
     // sits at y=116 so the whole disc clears the HUD bar (which ends
