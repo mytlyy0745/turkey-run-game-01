@@ -329,6 +329,20 @@ export function createRenderer(canvas) {
       const flap = Math.sin(state.elapsed * 5 + off) * 4;
       gull(fx2 + off, fy2 + dy2, 1, flap);
     }
+    // Woods only: one more pair gliding low over the farmer. The
+    // danger frame's upper-left band (below the COMBO pill, left of
+    // the turkey) was the emptiest patch of sky left in the sheet;
+    // the farmyard cover keeps its own bird arrangement.
+    if (state.stage === 1) {
+      const gx = 140 + Math.sin(state.elapsed * 0.3) * 14;
+      const gy = 168 + Math.sin(state.elapsed * 0.5) * 5;
+      context.strokeStyle = 'rgba(60,30,10,0.6)';
+      context.lineWidth = 2.5;
+      for (const [off, dy2] of BIRD_PAIR) {
+        const flap = Math.sin(state.elapsed * 6 + off) * 5;
+        gull(gx + off, gy + dy2, 1, flap);
+      }
+    }
   }
 
   function ridge(state, offset, amp, base, color, par, haze) {
