@@ -1,5 +1,19 @@
 # HANDOFF — turkey-run-game-01 "Turkey Run!"
 
+## 🔄 复赛 Round 2 — HUD + 分镜（2026-11-28，分支 finals/r2-hud-stage）
+
+- Commit：`c2288ca`（代码提交；记录提交另见下）——本轮只改 `game/src/render.js` + 3 张截图（1-play、3-danger、4-end；2-start 与 HEAD byte-identical，未变）；`shots.js`、`shots.json`、`world.js`、`config.js`、`main.ts`、`vendor/` 未动。render.js 经 4 处独立编辑改完，每处改完都重拍并目视/裁剪验证过。
+- 画面改进（全部逐张截图验证过，另裁剪放大验证封面刀区与危险帧刀区、拼 2×2 总览图缩到半尺寸检查）：
+  1. **4-end 的 `32m` pill 修掉了（本轮主攻）**：根因是农夫 gap 标签只在标题屏藏（`screen !== SCREEN_TITLE`），逃脱后农夫 gap 32m 仍画在左缘。改动：drawFarmer 里条件加 `screen !== SCREEN_OVER`，与标题藏 `24m` 同款做法——跑完了，距离数字在结束画面无意义。重拍验证：4-end 左缘是干净天空，农夫、FREEDOM、分数面板、重跑提示一字未动；CAUGHT 分支同享（同为 SCREEN_OVER）。
+  2. **封面刀与火鸡接上了（改构图，不换种子）**：刀仍在农夫脚边（~194px，第 14–16 轮探针已证伪“高分 + 刀贴身”的帧存在，本轮未重探）。改动：drawKnife 加可选 `aim` 参数——远刀（play 屏、未淡出、离火鸡 >120px）刀身前方加三道短淡白运动线，沿刀→火鸡连线（封面约 -34°），与身后拖尾同款白线语言；近刀（危险帧 16px 脚下刀）不画，保持真水平轨迹。裁剪放大验证：三道线从刀身斜指火鸡下身、止于空地，不碰烤箱/标签/火鸡，不读作激光线；危险帧刀区裁剪与基线像素 identical（sha256 相同），16px 脚下刀原样保留。
+  3. **HUD 页脚半尺寸可读（调参）**：两行 14px 页脚（`DASH — SHIFT`、`THE FARMYARD • BEST 1723`）是 HUD 上最细的文字，半尺寸下 ~7px 发虚。改动：14→16px、alpha 0.85/0.8→0.9。重拍验证：两行在四帧里都更实，无任何碰撞（DASH 行止于 x~384、页脚右对齐止于 x=1256、重跑 pill 底边 y=416 之上无重叠）；标题屏不走 drawHud，2-start byte-identical。
+- **河边阶段评估结论：不换，保留 danger 249 / play 238**：探针（/tmp/hud-r2/probe-river-danger.mjs，现行代码，种子 1–500）+ 两帧实拍。play：500/500 选帧都是 stage 0，40 秒窗口到不了河边（750m），换 play 要改选帧规则不只换种子。danger：62/500 选帧落在 stage 2，其中同时保住“16px 脚下刀 + 跃烤箱”的只有 2 个——62（3351 分、COMBO x0、2 命、2 座整烤箱）和 171（2681 分、x0）。62 实拍：蓝天河边是真蓝、刀擦脚、双烤箱完整，但 COMBO pill 消失（x2→x0，左上空一块）、分数 -234，且封面已是冷蓝天，换后总览图两蓝一绿变两蓝、丢掉唯一的绿帧。289（2919 分、COMBO x4）实拍否决：阶段横幅 `THE RIVERBANK +200` 冻在画面中央撞火鸡 + 护盾环罩鸟。结论：换河边要么丢 COMBO pill、要么丢刀/烤箱组合，净收益为负，不换。
+- 截图变化：play 1723 分/243m（前向运动线）、danger 3585 分/655m（仅页脚字号）、start 0 分（未变，byte-identical）、end 7130 分（无 32m + 页脚字号）；文件 68.3/79.0/68.0/85.6 KiB（均 ≤256 KiB）。2×2 总览图半尺寸检查通过。
+- 实测（只改渲染，world.js/shots.js 未动、没碰任何 random()，pilot/公平性数字沿用第 20 轮基线）：
+  - 确定性：main.ts 两次输出 byte-identical（diff -r 干净；dossier 574,726 字节，总输出 1,041,877 字节；dossier 文本 159,363 字节，上限 163,840，余 4,477——本轮 +1,015）。
+  - 0 console 报错、0 外部请求（4 张重拍逐张报 0）；`node --check` 全过。
+- 失败/回滚：无代码回滚。一次返工评估在内：河边 289 实拍否决（只存在于 /tmp 预览，shots.json 一次未动）；一次度量换道：危险帧改动归因先凭文件大小猜是刀漏线，裁剪 sha256 对比证实刀区像素 identical、变化只来自页脚字号。
+
 ## ✅ 已提交（2026-11-27 ~23:00 CST，协调员打包提交）
 
 - **Submission id：`01a21d85-42b9-718d-b581-93c9c83c27bf`**，claim code **`AF-X1B5G-ZT7QY-4NNCF-B6N2P`**，标题 "Turkey Run!"，commit `64ffb57bfcc0fc1e6ded6d345b324cf13e057c96`（main 最新，代码 commit `ec3583e` + 打磨记录 commit `64ffb57`）。

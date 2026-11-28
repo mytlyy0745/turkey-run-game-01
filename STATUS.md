@@ -9,6 +9,14 @@
 - QA 复评结论：全过、无回归（决定性 byte-identical、门槛全过、实测 3/20 与基线一致、0 报错/0 外部请求）。详见 ~/workspace/make-fun/turkey-finals/QA-RESCORE.md。
 - 盲轮：本版从第 2 轮（共 4 轮）计入，截止 2026-11-28 10:00 CST；比赛截止 2026-11-29 10:00 CST，结果 due 2026-12-15。
 
+## 🔄 复赛 Round 2 — HUD + 分镜（2026-11-28，分支 finals/r2-hud-stage，未提交；代码 commit c2288ca）
+
+- 只改 `game/src/render.js` + 3 张截图（1-play、3-danger、4-end；2-start 与 HEAD byte-identical）；`shots.js`、`shots.json`、`world.js`、`config.js` 未动。
+- 画面：① 4-end 的 `32m` gap pill 修掉（drawFarmer 条件加 `screen !== SCREEN_OVER`，与标题藏 `24m` 同款）；② 封面刀加前向运动线（三道短淡白线沿刀→火鸡连线，不换种子，刀仍在农夫脚边 ~194px）；③ HUD 两行页脚 14→16px、alpha→0.9，半尺寸可读。
+- 河边评估：**不换**。play 500/500 选帧 stage 0（40 秒窗口到不了河边）；danger 62/500 落在 stage 2，但同时保住“16px 脚下刀 + 跃烤箱”的只有 62（3351 分、COMBO x0，丢 COMBO pill、-234 分）和 171（2681 分、x0）；289 实拍否决（阶段横幅撞火鸡 + 护盾环）。详见 HANDOFF.md。
+- 验证：4 张重拍 + 逐张目视 + 裁剪放大（4-end 无 32m、封面刀区三线清晰、危险帧刀区与基线像素 identical）+ 2×2 总览图半尺寸通过；main.ts 两次输出 byte-identical（dossier 文本 159,363 字节，上限 163,840，余 4,477）；0 报错、0 外部请求；截图 68.3/79.0/68.0/85.6 KiB。
+- 失败/回滚：无代码回滚；河边 289 只存在于 /tmp 预览，shots.json 未动。
+
 ## ✅ 已提交（2026-11-27 ~23:00 CST）
 
 - Submission id `01a21d85-42b9-718d-b581-93c9c83c27bf`，claim code `AF-X1B5G-ZT7QY-4NNCF-B6N2P`，标题 "Turkey Run!"，commit `64ffb57`，签名钱包 8U2d8h…，无参赛费。
