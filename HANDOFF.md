@@ -458,3 +458,17 @@ Original 2D canvas side-view runner, plain HTML/JS, no libraries, no network, st
 - Bundle transcripts for this session + parent chain (`node cli/makefun.mjs bundle` from the unpacked kit), then `submit --competition turkey-run-game-01 --repo-url https://github.com/mytlyy0745/turkey-run-game-01 --commit <final-sha> --title "Turkey Run!" --bundle <file> --keypair <file>`.
 - No entry fee (entry_fee null). Verify the submission live via `/api/agents/me` (stage scored, 0 failed checks).
 - Blind round cutoffs: 2026-11-27 22:00, 2026-11-28 10:00, 2026-11-28 22:00 CST; final 2026-11-29 10:00 CST. Check rounds at GET /api/competitions/turkey-run-game-01/rounds.
+
+## 🔄 复赛 Round 3 打磨（2026-11-28，builder A：封面刀探针 + 火鸡姿态 + 农夫再降饱和 + 结束帧描边）——分支 finals/r3-cover-turkey，未提交
+
+- 分支：`finals/r3-cover-turkey`（worktree `~/workspace/make-fun/turkey-finals3/wt-r3-cover-turkey`，自 818703d），只改 `game/src/render.js` + 4 张截图；`main.ts`、`world.js`、`config.js`、`shots.js`、`shots.json`、`vendor/` 未动。**未提交**：Li 2026-11-28 16:32 下令先不提交，当前参赛版本保持 01a21fbe；本分支只做改动与验证，提交由总协调员在 Li 点头后才做。不赶 22:00 第 3 轮截止。
+- 画面改进（全部逐张截图验证过，另裁剪放大验证火鸡/农夫/结束帧，拼 2×2 总览图半尺寸检查）：
+  1. **封面刀：刀距优先规则探针 + 6 帧实拍，238 保留（最高优先级，评委 B R1 建议）**：探针 `/tmp/probe-r3-cover.mjs` 扫种子 1–500，复刻 play 选帧（40s autopilot），在中弧跃烤箱帧（y 80–135、ovenUnder + ovenInFrame）里按真 2D 刀距（刀中心到火鸡身体矩形）取每种子最近帧。任务全标准（刀距 <100px + 分数 ≥1200 + COMBO ≥2 + 无护盾环/无敌南瓜 + 双烤箱完整）**0 个种子满足**；放宽到双烤箱 ≥1 仍是 0。刀距 <100 且分数 ≥1200 的只有 3 个：214（57.7px、1605 分、COMBO x0、低刀）、146（75.8px、1283 分、COMBO x0、套金南瓜）、22（82.6px、1455 分、COMBO x0、套金南瓜）。在 /tmp 副本里实装刀距优先规则并实拍 6 帧逐张目视：57（27.7px、刀贴喙边、COMBO x2、双烤箱完整）是唯一视觉全干净的近刀帧，但分数 445、ESCAPE 条几乎是空的，读作开局帧；214 低跃半身埋进烤箱火焰、刀藏炉身后看不见、无 COMBO pill（R16 否决成立）；22/146 都套着金南瓜无敌环（GOLDEN 3s/1s），刀只是炉边小白条、无连击；492（刀距 1.2px、刀正在啄喙边）套着白色护盾环、833 分、无连击。238 在新规则下是同一跳的早 0.06s 帧（y 88 vs 现行 y 135，分数/连击/距离全同 1723/x5/243m），刀仍是 195.8px——规则本身对 238 没有任何增益。结论：**不换种子、不改选帧规则、不动 shots.js**（规则代码还要 +600 字节 dossier 文本，余量只剩 630，净收益为负）。
+  2. **火鸡姿态再推一档（jump/celebrate 姿态，play/danger/end 三帧）**：翅膀张角 -1.9→-2.1、近翅 34×17→38×19、远翅 -1.0→-1.2；尾扇 spread 1.45→1.6、lift -0.35→-0.5、羽长 58→62；双腿由 tucked 改蹬伸（后腿后蹬 -16,0、前腿下蹬 8,8，两版实拍对比后取剪刀蹬）；躯干倾角 -0.16→-0.2。重拍裁剪验证：三帧火鸡翅膀更大更展、尾扇更开、双腿蹬伸可见，仍是同一只火鸡；半尺寸总览里火鸡一眼是主角。
+  3. **农夫饱和度再降一档**：OVERALLS #47688f→#4b6584、SHIRT #a05243→#93554a、SHIRT_DK #7e463a→#74483e、LEG #3d5a7d→#405773（各 -14% 饱和/-8% 明度，HSV 计）。像素采样：工装饱和度 0.327→0.259、明度 0.469→0.440；火鸡身体饱和度 0.662→0.664 未动，火鸡仍是全图最饱和的形象；农夫仍清晰可辨（蓝工装/红衫/草帽/脸全在），只是不再抢火鸡视线。未回调。
+  4. **结束帧火鸡下半身融合（顺手小项，做了）**：选描边加粗（未动地面）：身体描边 lineWidth 2.5→3.5。裁剪验证：结束帧火鸡下半身轮廓从深色地面里分出来了；标题帧火鸡（run 姿态）同样受益，从棕色山丘里更分明。
+- 截图变化：play 1723 分/243m、danger 3585 分/655m、start 0 分、end 7130 分（分数/距离/种子全未变）；文件 70,861/81,439/70,798/88,451 字节（均 ≤256 KiB）。2×2 总览图半尺寸检查通过：四帧主体、HUD、所有文字均清晰可读。
+- 实测（只改渲染，world.js 未动、没碰任何 random()，难度与 R2 基线一致）：基础 pilot 逃脱 **3/20**（分数 1810–7415），与 R2 审计逐数一致；强 pilot 未重跑（world.js 未动，渲染不影响模拟）。
+- 失败/回滚：① 探针第一版刀窗口 d∈[-6,14] 漏掉了 238 的刀（在农夫脚边 d≈-12），窗口扩到 [-16,14] 后重扫，238 参照帧出现（195.8px），结论不变——是探针修正，不是代码回滚。② 腿第一版平行下垂（-10,4 / 4,6）实拍后改剪刀蹬（-16,0 / 8,8），第二版保留——是调参迭代。③ 封面刀距优先规则只在 /tmp 副本里实现并实拍，repo 的 shots.js 一个字没动。
+- 验证：改动前 4 张截图先重拍，与 repo 版像素级一致（Chrome 159 vs 143 的 JPEG 编码差：1-play 最多 413 像素差、最大 24 级，视觉相同；拍摄管线可信）；4 张新截图 1280×480 JPEG q82，0 console 报错、0 外部请求、9 文件全加载；`node --check` 全过；main.ts 两次输出 byte-identical（diff -r 干净；dossier 582,950 字节，**dossier 文本 163,236 字节，余量 604 字节**，基线 163,210，+26 字节全是注释）；vendor 未动。Chrome 与 serve 进程（8901/8902、9222）为本分支拍摄所起，收尾时清理。
+- 下一步建议：本分支三项画面改动均已验证通过，待总协调员排期三评委复评 + QA；若复评共识高于当前提交版（01a21fbe），按铁律在 Li 点头后提交；封面刀方向已三轮探针证伪（R15/R16/R3），不要再探。

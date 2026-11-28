@@ -1033,7 +1033,7 @@ export function createRenderer(canvas) {
     // standing still — the escape frame's hero, mid-leap.
     const pose = celebrate ? 'jump' : air ? 'jump' : ducking ? 'slide' : p.squash > 0.4 ? 'hurt' : 'run';
     const runBob = pose === 'run' ? Math.sin(p.runPhase * 2) * 3 : 0;
-    const tilt = pose === 'jump' ? -0.16 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.1 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
+    const tilt = pose === 'jump' ? -0.2 : pose === 'slide' ? 0.14 : pose === 'hurt' ? -0.1 + Math.sin(state.elapsed * 18) * 0.1 : 0.05 + Math.sin(p.runPhase * 2) * 0.02;
     // A soft contact shadow grounds the turkey, even mid-jump.
     ellipse(cx, gy + 4, 34 * scale * (1 - clamp(p.y / 320, 0, 0.45)), 7, 'rgba(20,10,2,0.28)');
     // Warm halo behind the bird, then the body outline below: the bird
@@ -1128,11 +1128,11 @@ export function createRenderer(canvas) {
     // wags as it runs, spreads wide and lifts in a jump, flattens back
     // in a slide and droops when hurt. Pale rim on each feather, so the
     // fan reads against the hills instead of melting into them.
-    const tailSpread = pose === 'jump' ? 1.45 : pose === 'slide' ? 0.4 : pose === 'hurt' ? 0.55 : 1 + Math.sin(p.runPhase * 2) * 0.3;
-    const tailLift = pose === 'jump' ? -0.35 : pose === 'slide' ? 0.3 : pose === 'hurt' ? 0.35 : 0;
+    const tailSpread = pose === 'jump' ? 1.6 : pose === 'slide' ? 0.4 : pose === 'hurt' ? 0.55 : 1 + Math.sin(p.runPhase * 2) * 0.3;
+    const tailLift = pose === 'jump' ? -0.5 : pose === 'slide' ? 0.3 : pose === 'hurt' ? 0.35 : 0;
     for (let i = -2; i <= 2; i += 1) {
       const ang = i * 0.42 * tailSpread;
-      const len = (pose === 'jump' ? 58 : 48) - Math.abs(i) * 5;
+      const len = (pose === 'jump' ? 62 : 48) - Math.abs(i) * 5;
       const col = PALETTE.tail[i + 2];
       context.save();
       context.translate(-6, -bodyH + 26);
@@ -1150,7 +1150,7 @@ export function createRenderer(canvas) {
       context.fill();
       context.restore();
     }
-    // Legs — a big two-beat stride while running, tucked up in the air,
+    // Legs — a big two-beat stride while running, kicked out in the air,
     // stretched out behind in a slide, splayed when hurt.
     const legSwing = Math.sin(p.runPhase * 2);
     context.strokeStyle = '#e8a33c';
@@ -1159,9 +1159,9 @@ export function createRenderer(canvas) {
     context.beginPath();
     if (pose === 'jump') {
       context.moveTo(-4, -14);
-      context.lineTo(2, -2);
+      context.lineTo(-16, 0);
       context.moveTo(10, -14);
-      context.lineTo(16, -4);
+      context.lineTo(8, 8);
     } else if (pose === 'slide') {
       context.moveTo(-4, -14);
       context.lineTo(-24, -2);
@@ -1195,7 +1195,7 @@ export function createRenderer(canvas) {
     }
     // Far wing: a darker sliver behind the body, raised in counter-phase
     // while running so both wings read as flapping, thrown wide on a jump.
-    const farFlap = pose === 'jump' ? -1.0 + Math.sin(state.elapsed * 16) * 0.3 : pose === 'hurt' ? -0.7 + Math.sin(state.elapsed * 20) * 0.3 : pose === 'slide' ? 0.35 : -0.5 - Math.sin(p.runPhase * 2) * 0.3;
+    const farFlap = pose === 'jump' ? -1.2 + Math.sin(state.elapsed * 16) * 0.3 : pose === 'hurt' ? -0.7 + Math.sin(state.elapsed * 20) * 0.3 : pose === 'slide' ? 0.35 : -0.5 - Math.sin(p.runPhase * 2) * 0.3;
     context.save();
     context.translate(-6, -bodyH / 2 - 10);
     context.rotate(farFlap);
@@ -1211,7 +1211,7 @@ export function createRenderer(canvas) {
     context.ellipse(6, -bodyH / 2 - 6, bodyW / 2, bodyH / 2, 0, 0, Math.PI * 2);
     context.fill();
     context.strokeStyle = '#4a2c12';
-    context.lineWidth = 2.5;
+    context.lineWidth = 3.5;
     context.stroke();
     context.fillStyle = PALETTE.turkeyLight;
     for (let r = 0; r < 3; r += 1) {
@@ -1225,9 +1225,9 @@ export function createRenderer(canvas) {
     // flat in a slide, flailing when hurt. Bigger and paler than the
     // body, with a dark outline and tip ticks, so it reads as a wing
     // instead of melting into the body.
-    const wingFlap = pose === 'jump' ? -1.9 + Math.sin(state.elapsed * 16) * 0.35 : pose === 'slide' ? 0.55 : pose === 'hurt' ? -1.0 + Math.sin(state.elapsed * 20) * 0.4 : Math.sin(p.runPhase * 2) * 0.55 - 0.25;
-    const wingLen = pose === 'jump' ? 34 : 26;
-    const wingH = pose === 'jump' ? 17 : 15;
+    const wingFlap = pose === 'jump' ? -2.1 + Math.sin(state.elapsed * 16) * 0.35 : pose === 'slide' ? 0.55 : pose === 'hurt' ? -1.0 + Math.sin(state.elapsed * 20) * 0.4 : Math.sin(p.runPhase * 2) * 0.55 - 0.25;
+    const wingLen = pose === 'jump' ? 38 : 26;
+    const wingH = pose === 'jump' ? 19 : 15;
     context.save();
     // On a jump the wing anchors at the top of the body and throws
     // up-back, clear of the body silhouette — centred on the body it
@@ -1353,9 +1353,10 @@ export function createRenderer(canvas) {
   function drawFarmer(state, scale, screen) {
     const f = state.farmer;
     const gap = f.gap;
-    // Muted one notch (was #2e5fa8/#c0392b): the farmer was the most
-    // saturated figure in every frame; the turkey must lead now.
-    const OVERALLS = '#47688f', SHIRT = '#a05243', SHIRT_DK = '#7e463a', LEG = '#3d5a7d';
+    // Muted once more (was #2e5fa8/#c0392b, then #47688f/#a05243): the
+    // farmer was the most saturated figure in every frame; the turkey
+    // must lead now.
+    const OVERALLS = '#4b6584', SHIRT = '#93554a', SHIRT_DK = '#74483e', LEG = '#405773';
     // The pursuer is always on screen, clamped to the left edge: the
     // chase must read at a glance in every frame. The metres above him
     // and the progress bar give the true distance. The clamp keeps his
