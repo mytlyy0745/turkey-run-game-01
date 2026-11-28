@@ -344,22 +344,9 @@ export function createRenderer(canvas) {
     ridge(state, 0, 46, 340, stage.hillFar, 0.12, 'rgba(255,240,214,0.20)');
     ridge(state, 150, 38, 352, stage.hillMid, 0.18, 'rgba(255,240,214,0.10)');
     ridge(state, 300, 30, 366, stage.hillNear, 0.25);
-    // A red barn silhouette rides the far ridge — the farm reads at a
-    // glance even before any fence or pumpkin scrolls past. The barns
-    // sit 150 px further left than the ridge maths alone would put
-    // them: at the old phase a barn landed right under the danger
-    // frame's flying knife, so the white trail crossed the barn's
-    // door and the blade cut across its roof. Shifted, the knife
-    // flies through open sky with ~90 px clear of the nearest barn.
-    // On the title the barns use a phase 550 px further right
-    // instead: the title is a fixed scene (distance 0), so one barn
-    // always landed dead centre behind the instruction panel, with
-    // only its bottom 22 px and white door poking out under the
-    // panel's gold edge. Shifted, the two barns sit at x~190 and
-    // x~1170 — both fully clear of the panel (250..1030). The
-    // title phase is title-only: shifting the barns everywhere would
-    // push one onto the danger frame's turkey and oven, and one
-    // behind the end frame's score panel.
+    // Red barns ride the far ridge so the farm reads at a glance. Phases
+    // keep them clear of the danger frame's knife (shifted 150 px left)
+    // and the title panel (title-only phase +550 px, barns at ~190/~1170).
     const barnPhase = screen === SCREEN_TITLE ? 190 : -360;
     const scroll = stateScroll(state);
     const shift = (scroll * 0.12) % 640;
@@ -400,20 +387,9 @@ export function createRenderer(canvas) {
       ellipse(shx + 6, sby - 18, 4, 3, stage.leaf);
       ellipse(shx + 16, sby - 14, 3.5, 2.5, stage.leaf);
     }
-    // Right-band midground dressing (finals round 21): the danger
-    // frame's right 2/3 used to be flat hill bands, so the frame read
-    // left-heavy. A second barn, an oak, a second shrub, a fence run
-    // and a hay bale ride the same ridge maths at new phases and
-    // scroll with the world; every one is drawn only when its screen
-    // x lands in the right band (700..1280), so the turkey, the knife
-    // and the OVEN! label — all left of x=520 in every staged play
-    // frame — can never be covered. Play screens only: the title and
-    // end screens keep their own compositions. Pure functions of
-    // distance, so the gameplay random stream is never touched.
-    // Phases are tuned to the danger frame's scroll (655 m): barn
-    // ~760, oak ~900, shrub ~1150, bale ~1160, fence 724..980.
-    // Hills paint before entities, so an oven or its label always
-    // lands on top of this dressing, never behind it.
+    // Right-band midground dressing (play only): a second barn, oak,
+    // shrub, fence and bale ride the ridge maths, drawn only at x 700..1280
+    // so the turkey/knife/OVEN! label (all left of x=520) are never covered.
     if (screen === SCREEN_PLAY) {
       const inBand = (x) => x >= 700 && x <= 1280;
       // Second barn on the far ridge, a little smaller than the pair.
@@ -887,25 +863,10 @@ export function createRenderer(canvas) {
     context.drawImage(featherGlowSprite, sx - 30, cy - 30, 60, 60);
   }
 
-  // A carving knife in flight — bigger than before, with a dark outline
-  // so the blade reads against bright sky and dark ground alike, two
-  // faint ghost blades trailing it, and a long white speed streak
-  // streaming BEHIND it (knives fly to the right, so the trail runs
-  // left). In the contact sheet the old knife was a sliver you could
-  // barely see; this one is visible at a glance.
-  // Thickened again in the finals details pass: the cover blade still
-  // shrank to a thin white streak at half size, so the blade went
-  // ~35% thicker (half-height 8 -> 11, length untouched, same spin
-  // and trail) and gained a white halo under its dark edge — the halo
-  // is stroked first at width 6, then the fill, then the dark 2 px
-  // edge, leaving ~2 px of white rim outside the dark line. The
-  // handle gets the same white halo, for the same reason, on the
-  // danger frame where it crosses the oven flames.
-  // alpha fades a knife that has already flown past the turkey: a
-  // spent knife keeps flying right until it despawns 70 m ahead, so
-  // without the fade the frame always carries one lonely blade way
-  // out on the right, flying at the barn instead of at the bird.
-  // alpha is 1 until the knife is 8 m past the turkey and 0 by 28 m.
+  // Carving knife in flight: thick blade + white halo under a dark edge
+  // so it reads against sky and ground at half size; ghost blades and a
+  // white speed streak trail behind it (knives fly right). Spent knives
+  // fade out (alpha 1 until 8 m past the turkey, 0 by 28 m).
   function drawKnife(sx, y, t, alpha, aim) {
     const a = alpha === undefined ? 1 : alpha;
     const cy = FIELD.groundY - y;
@@ -1884,17 +1845,9 @@ export function createRenderer(canvas) {
     // A dark gradient at the top and bottom so the text reads over the scene.
     context.fillStyle = titleGrad;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
-    // The whole title text block sits 8 px higher than before (kicker
-    // 72→64, title 140→132, subtitle pill 149→141, panel 188→180):
-    // the title turkey grows to 1.20 (see drawField), and its head
-    // needs the panel's bottom edge out of the way — the block moves
-    // as one, so every gap inside it stays exactly as measured
-    // before. The panel bottom is now y=268 (tightened in round 16).
-    // The kicker sits on a dark pill, like the subtitle below it:
-    // 22 px gold on bright orange sky was the thinnest, lowest-
-    // contrast text on the title, and at contact-sheet size it went
-    // faint. The pill is 440 px wide — the line measures ~400 px —
-    // and it clears the title below (top y=72, title cap starts ~y=78).
+    // The whole title text block sits 8 px higher (kicker 64, title 132,
+    // subtitle 141, panel 180) so the 1.20 title turkey's head clears the
+    // panel bottom (now y=268); the kicker sits on a dark pill for contrast.
     pill(420, 42, 440, 30, 12, 'rgba(20,8,2,0.45)');
     text('THANKSGIVING IS COMING…', 640, 64, 22, '#ffd23e', 'center', '900');
     context.save();
@@ -2165,20 +2118,12 @@ export function createRenderer(canvas) {
         // are only checked while |d| < 1 m, where alpha is 1.
         const kd = e.x - state.distance;
         const ka = kd > 8 ? clamp(1 - (kd - 8) / 20, 0, 1) : 1;
-        // On the escape screen a knife left of the score panel is
-        // spent twice over: the chase is over, and a spinning blade
-        // there is a defect, not a threat — seed 159's froze at
-        // 262.8 degrees, its tip at (196,260) cutting the bottom
-        // of FREEDOM's D and its trail streaking across the barn,
-        // reading as a blade stuck upright in the dirt by the
-        // farmer. So it lies dropped flat on the ground instead:
-        // same screen x, blade pointing right, no spin, no trail,
-        // no ghosts. Knives at or right of the panel (sx >= 470)
-        // keep flying — a flat blade there would land on the panel
-        // or the re-run prompt.
-        // A far knife still closing on the play screen gets forward
-        // lines along the knife-to-turkey line (cover: ~250 px away);
-        // a close one (the danger graze) keeps the true trail only.
+        // On the escape screen a knife left of the score panel is spent:
+        // it lies dropped flat on the ground (same x, blade right, no spin
+        // or trail) instead of a spinning blade cutting the FREEDOM label.
+        // Knives at/right of the panel (sx >= 470) keep flying.
+        // A far knife closing on the play screen gets forward lines along
+        // the knife-to-turkey line; a close one keeps the true trail only.
         let aim;
         if (screen === SCREEN_PLAY && ka === 1) {
           const tdx = TURKEY_X + TURKEY.width / 2 - sx;
@@ -2207,21 +2152,9 @@ export function createRenderer(canvas) {
       context.fillStyle = titleGlowGrad;
       context.fillRect(gx - 170, gy - 170, 340, 340);
     }
-    // Escape only: the same warm pool behind the hero turkey. The
-    // end frame's bird stands against the near hill (#3e2739) in
-    // almost its own browns (#8a5a2e body), so at half size it sank
-    // into the hillside exactly the way the title bird used to —
-    // and at 1.8x the bird is bigger but the hill behind it is the
-    // same dark purple, so the glow is bigger too (r 210, centre
-    // (361,320), the bird's visual centre) and lifts the hill into
-    // a lit backdrop without moving the bird. It is drawn before
-    // the turkey, so it never washes the bird itself, and before
-    // the farmer, so he is untouched; the score panel and subtitle
-    // pill are drawn later in drawOver, on top of it. The wash
-    // over the FREEDOM label's right end is ~0.1 alpha — the label
-    // stays gold. The fence pickets behind the bird catch the
-    // strongest light, which is the point: brown feathers read
-    // against lit pickets and lit hill instead of dark-on-dark.
+    // Escape only: a warm pool behind the hero turkey so the brown bird
+    // reads against the dark-purple hill (r 210, bird's centre); drawn
+    // before turkey/farmer, under the later score panel and pill.
     if (escaped) {
       const gx = TURKEY_X + TURKEY.width / 2;
       const gy = FIELD.groundY - 80;
