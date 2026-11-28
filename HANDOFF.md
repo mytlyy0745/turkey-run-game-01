@@ -1,5 +1,18 @@
 # HANDOFF — turkey-run-game-01 "Turkey Run!"
 
+## 🔄 R3 打磨链第 20 轮：冻结验证 + 难度复核（2026-11-28，分支 finals/r3-rounds-11-20）
+
+- **焦点**：冻结轮，不改代码。只做最终验证 + 难度复核，为三评委最终复评交出可提交状态的分支。
+- **验证（全部实测）**：
+  - 4 张重拍（重建后的拍摄管线，见过程备注）：与 repo 内截图 md5 **逐张相同**（72,900 / 84,227 / 73,262 / 93,591 字节，均 ≤256 KiB、1280×480）；0 console 报错、0 外部请求、0 失败请求；`node --check` 全过（8 个 game/src/*.js + main.ts + serve.ts）。
+  - 半尺寸 2×2 总览图逐项复核通过：四色齐全（蓝/橙/绿/粉）；第 11–16 轮六处改动全部在位（结束帧右丘橡树+谷仓+栅栏+干草堆、标题大刀、FREEDOM 亮金、标题右上云、play 更蓝的天、结束帧小一号农夫）；HUD 四张完整（★ FREE BIRD pill 在位）；OVEN!/FREEDOM/ESCAPED! 全部可读；无新碰撞、无回归。
+  - 确定性：`main.ts` 两次输出 byte-identical（`diff -r` 干净）；dossier 文本 **162,762 字节（余量 778，无 `"[Cut at"` 截断标记）**，dossier.json 599,049 字节（≤1.5 MiB）；game/ 9 文件。
+  - 难度复核（R2 同款试点脚本，指向本分支代码）：base pilot 逃脱 **3/20（15%）**，分数 1810–7415、中位距离 1111m、中位分数 3297.5，与 R2 基线逐数一致；strong pilot **5/20**（中位 864.5m/2878），同样一致；world determinism 两次 hash 相同（3f647eb80444，与 MERGE-R3 一致）；end 种子 159 仍为 7130 分逃脱（41 玉米、COMBO x5）；无操作 94m/92m、一直冲 121m/110m、随机按键 181m/113m、一直跳/一直蹲均被抓，无免费赢法。**难度未动。**
+  - 与 R2 参赛版（818703d）的 diff：只动 `game/src/render.js` 与 `game/src/shots.js`（注释精简 T4）+ 4 张截图 + HANDOFF；`world.js`、`config.js`、`main.js`、`input.js`、`audio.js`、`random.js`、`shots.json`、`main.ts` 未动；种子 play 238 / start 7 / danger 249 / end 159 全未变。
+- **过程备注**：第 19 轮验证后 VM 重部署清掉了 /tmp（拍摄脚本、试点脚本、/tmp 截图与本地服务全部丢失），worktree 与分支未受影响。本轮重建管线：拍摄脚本存为 `~/workspace/make-fun/turkey-finals3/shoot-r3-chain2.mjs`（与原 /tmp/shoot-r3.mjs 同款），试点脚本存为 `~/workspace/make-fun/turkey-finals3/test-pilots-r20.mjs`（R2 同款，import 指向本分支）；重拍 4 张与 repo 截图逐字节相同，证明重建管线可信。
+- **第 11–20 轮收尾**：10 个 round commit 全部已 push 到 `origin/finals/r3-rounds-11-20`，未提交到 make.fun（Li 16:32 令）；一页简表见 `~/workspace/make-fun/turkey-finals3/ROUNDS-11-20.md`。本分支只做到可提交状态，等 Li 点头 + 三评委最终复评共识高于 R2 + QA 全过 + 2026-11-29 06:00 CST 之前，三条同时满足才由总协调员提交。
+
+
 ## 🔄 R3 打磨链第 19 轮：验证轮——结束帧暖光池 0.22→0.26 试后回滚，无硬改（2026-11-28，分支 finals/r3-rounds-11-20）
 
 - **试改与回滚**：本轮原定焦点是最后一项光影候选——结束帧脚下暖光池 `rgba(255,214,130,0.22)` → `0.26`（`drawGround` 一处数值，等长替换，0 字节；不加辉光、不动火鸡）。实拍：4 帧 0 抽样像素变化；暖光池区均值 (150,112,61)→(151,113,62)，只漂移 1 级——光池落在火鸡脚下已被身体遮挡大半的暖土带上，+0.04 alpha 落在阈值以下。按规则已 `git checkout` 回滚，**代码 0 改动**。
