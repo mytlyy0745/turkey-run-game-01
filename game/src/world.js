@@ -166,7 +166,7 @@ export function createWorld(random) {
     const e = freeEntity();
     if (!e) return;
     patternsSpawned += 1;
-    if (opening && patternsSpawned <= 2) { // opening pair are fences: widest jump window (0.27 s)
+    if (opening && patternsSpawned <= 2 && roll < 0.8) { // opening pair are fences, corn arcs kept: widest jump window (0.27 s)
       e.active = true; e.kind = KIND_FENCE; e.x = at; e.y = 0;
       e.w = OBSTACLE.fenceWidthM; e.h = 44;
     } else if (roll < 0.24) { // a glowing oven squatting on the path — jump it
