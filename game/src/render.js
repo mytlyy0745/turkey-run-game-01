@@ -14,6 +14,35 @@ export const SCREEN_OVER = 'over';
 
 const STAGE_LEN = TOTAL_DISTANCE / STAGES.length;
 
+// Cool farmyard palette for the play screen only (see drawField): the
+// title keeps the warm sunset, play goes cool so the contact sheet's
+// top row is not one orange block twice. Single source for both the
+// live override and the cached gradients below.
+const COOL = {
+  skyTop: '#aed6ea', skyMid: '#86b8d6', skyBot: '#6f9cc4',
+  hillFar: '#7d7a52', hillMid: '#655f42', hillNear: '#4e4a33',
+  ground: '#96703a', groundDark: '#77572a', grass: '#b9a24e',
+};
+
+// Per-frame constants hoisted out of the draw calls (smoothness pass):
+// these arrays were rebuilt on every frame for identical contents.
+const LEAF_COLS = ['#e8a13a', '#d94f30', '#f2c14e'];
+const FLOWER_COLS = ['#e86a1e', '#f2c14e', '#d94f30'];
+const TONGUES = [ // oven flame tongues; dx is a fraction of the oven width
+  { dx: -0.26, h: 30, w: 13, ph: 0 },
+  { dx: 0, h: 46, w: 20, ph: 1.3 },
+  { dx: 0.26, h: 32, w: 13, ph: 2.6 },
+];
+const BIRD_PAIR = [[0, 0], [46, -6]];
+const BIRD_FLOCK = [[0, 0], [34, -7], [62, 5]];
+const BURSTS = [[180, 150], [1100, 150]];
+const END_TUFTS = [[128, 15, '#d99a44'], [168, 18, '#4e3018'], [208, 14, '#d99a44'], [238, 12, '#d99a44']];
+
+// Draw at most this many particles a frame (pool is 140 in world.js;
+// staged scenes peak at 39). A hard bound on the worst frame, never
+// reached in normal play, so it changes no shipped screenshot.
+const MAX_DRAW_PARTICLES = 100;
+
 function lerp(a, b, t) { return a + (b - a) * t; }
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
@@ -21,6 +50,117 @@ export function createRenderer(canvas) {
   const context = canvas.getContext('2d');
   const view = { scale: 1, x: 0, y: 0 };
   const fonts = new Map();
+
+  // Cached gradients + glow sprites (smoothness pass). Every gradient
+  // below is fixed in field space — the draw transform is the same
+  // each frame — so it is built once and reused instead of rebuilt
+  // 60x/s for identical pixels (the play frame alone made 54
+  // gradients a draw, 42 of them one radial per ember). A sprite is
+  // the same idea for a position-dependent radial glow: one
+  // pre-rendered falloff, drawn with drawImage at 2x the gradient
+  // radius and centred on the gradient centre — the same circle the
+  // gradient painted, no per-frame gradient object and no
+  // per-particle template strings. Varying alpha comes from
+  // globalAlpha, never from a rebuilt gradient.
+  function glowSprite(stops, size, innerDyFrac) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    // innerDyFrac shifts the gradient's inner circle down by that
+    // fraction of the radius (embers: the hot core sits 0.4 radii
+    // below the flame's outer centre — a concentric sprite would
+    // paint the lower flame ~0.2 alpha too dim).
+    const g2 = g.createRadialGradient(size / 2, size / 2 + (innerDyFrac || 0) * size / 2, 0, size / 2, size / 2, size / 2);
+    for (const [o, col] of stops) g2.addColorStop(o, col);
+    g.fillStyle = g2;
+    g.fillRect(0, 0, size, size);
+    return c;
+  }
+  function skyGrad(s) {
+    const g = context.createLinearGradient(0, 0, 0, FIELD.groundY);
+    g.addColorStop(0, s.skyTop);
+    g.addColorStop(0.55, s.skyMid);
+    g.addColorStop(1, s.skyBot);
+    return g;
+  }
+  function groundGrad(s) {
+    const g = context.createLinearGradient(0, FIELD.groundY, 0, FIELD.height);
+    g.addColorStop(0, s.ground);
+    g.addColorStop(1, s.groundDark);
+    return g;
+  }
+  const skyGrads = STAGES.map(skyGrad);
+  const skyGradCool = skyGrad(COOL);
+  const groundGrads = STAGES.map(groundGrad);
+  const groundGradCool = groundGrad(COOL);
+  const sunGlows = STAGES.map((s) => {
+    const g = context.createRadialGradient(1020, 116, 8, 1020, 116, 190);
+    g.addColorStop(0, s.sunGlow);
+    g.addColorStop(1, 'rgba(255,200,90,0)');
+    return g;
+  });
+  const hudProgGrad = (() => {
+    const g = context.createLinearGradient(300, 0, 920, 0);
+    g.addColorStop(0, '#ffd23e');
+    g.addColorStop(1, '#ff7a1e');
+    return g;
+  })();
+  const hudStamGrad = (() => {
+    const g = context.createLinearGradient(24, 0, 244, 0);
+    g.addColorStop(0, '#7dd3fc');
+    g.addColorStop(1, '#38bdf8');
+    return g;
+  })();
+  const titleGrad = (() => {
+    const g = context.createLinearGradient(0, 0, 0, FIELD.height);
+    g.addColorStop(0, 'rgba(20,8,2,0.55)');
+    g.addColorStop(0.35, 'rgba(20,8,2,0)');
+    g.addColorStop(0.75, 'rgba(20,8,2,0.15)');
+    g.addColorStop(1, 'rgba(20,8,2,0.7)');
+    return g;
+  })();
+  const overGlowGrad = (() => {
+    const g = context.createRadialGradient(640, 120, 10, 640, 120, 260);
+    g.addColorStop(0, 'rgba(255,190,60,0.5)');
+    g.addColorStop(1, 'rgba(255,190,60,0)');
+    return g;
+  })();
+  const ovenDoorGrad = (() => {
+    const g = context.createLinearGradient(0, FIELD.groundY - 52, 0, FIELD.groundY - 8);
+    g.addColorStop(0, '#ffd23e');
+    g.addColorStop(0.5, '#ff7a1e');
+    g.addColorStop(1, '#c22e00');
+    return g;
+  })();
+  const vignetteGrad = (() => {
+    const g = context.createRadialGradient(640, 240, 170, 640, 240, 480);
+    g.addColorStop(0, 'rgba(200,20,10,0)');
+    g.addColorStop(1, 'rgba(200,20,10,1)');
+    return g;
+  })();
+  // Title + escape hero glows: fixed centres (title dx 679, same
+  // literal as drawField's turkeyDx), so cached like the rest.
+  const titleGlowGrad = (() => {
+    const gx = TURKEY_X + TURKEY.width / 2 + 679, gy = FIELD.groundY - 55;
+    const g = context.createRadialGradient(gx, gy, 10, gx, gy, 170);
+    g.addColorStop(0, 'rgba(255,232,170,0.6)');
+    g.addColorStop(0.55, 'rgba(255,222,150,0.28)');
+    g.addColorStop(1, 'rgba(255,222,150,0)');
+    return g;
+  })();
+  const escapeGlowGrad = (() => {
+    const gx = TURKEY_X + TURKEY.width / 2, gy = FIELD.groundY - 80;
+    const g = context.createRadialGradient(gx, gy, 10, gx, gy, 210);
+    g.addColorStop(0, 'rgba(255,232,170,0.62)');
+    g.addColorStop(0.55, 'rgba(255,222,150,0.28)');
+    g.addColorStop(1, 'rgba(255,222,150,0)');
+    return g;
+  })();
+  const emberSprite = glowSprite([[0, 'rgba(255,220,110,0.85)'], [0.5, 'rgba(255,122,30,0.6)'], [1, 'rgba(255,80,10,0)']], 64, 0.4);
+  const goldSprite = glowSprite([[0, 'rgba(255,210,62,0.65)'], [1, 'rgba(255,210,62,0)']], 128);
+  const whiteGlintSprite = glowSprite([[0, 'rgba(255,255,255,0.7)'], [1, 'rgba(255,255,255,0)']], 24);
+  const featherGlowSprite = glowSprite([[0, 'rgba(255,255,255,0.5)'], [1, 'rgba(255,255,255,0)']], 60);
+  const farmerPatchSprite = glowSprite([[0, 'rgba(247,220,158,0.55)'], [1, 'rgba(247,220,158,0)']], 184);
 
   function resize() {
     const ratio = window.devicePixelRatio || 1;
@@ -65,11 +205,9 @@ export function createRenderer(canvas) {
 
   // ---- sky, sun, clouds, hills ----
   function drawSky(state, stage, screen) {
-    const g = context.createLinearGradient(0, 0, 0, FIELD.groundY);
-    g.addColorStop(0, stage.skyTop);
-    g.addColorStop(0.55, stage.skyMid);
-    g.addColorStop(1, stage.skyBot);
-    context.fillStyle = g;
+    // stage is the live view: the base stage object, or a fresh spread
+    // when the play screen runs the cool farmyard override (COOL).
+    context.fillStyle = stage === STAGES[state.stage] ? skyGrads[state.stage] : skyGradCool;
     context.fillRect(0, 0, FIELD.width, FIELD.groundY);
     // Clouds drift on the wind — the high ones from the world, plus three
     // big soft ones lower down, so the middle of the sky is never empty.
@@ -123,10 +261,7 @@ export function createRenderer(canvas) {
     // at y=78) in play frames — at y=86 the top of the disc slid
     // behind the bar and read as a clipped half-sun.
     const sunX = 1020, sunY = 116;
-    const glow = context.createRadialGradient(sunX, sunY, 8, sunX, sunY, 190);
-    glow.addColorStop(0, stage.sunGlow);
-    glow.addColorStop(1, 'rgba(255,200,90,0)');
-    context.fillStyle = glow;
+    context.fillStyle = sunGlows[state.stage];
     context.fillRect(sunX - 140, sunY - 140, 280, 280);
     context.fillStyle = stage.sun;
     context.beginPath();
@@ -155,14 +290,8 @@ export function createRenderer(canvas) {
     const dx = 1132 + Math.sin(state.elapsed * 0.3) * 18;
     const dy = 128 + Math.sin(state.elapsed * 0.5) * 6;
     const dflap = Math.sin(state.elapsed * 3.2) * 4;
-    // Birds are drawn as a sharp "V" gull — two straight strokes
-    // meeting at a point — not the smooth single arc they used to
-    // be: three arcs in a row, spaced 34 px apart on one baseline,
-    // read as a row of closed eyes whenever they crossed a pale
-    // cloud (the danger frame grew a sleepy face, the cover a sad
-    // one), and a flap dip in the middle arc became a frowning
-    // mouth. A pointed V with staggered heights reads as birds at
-    // any phase and at contact-sheet size, and never as a face.
+    // Birds are sharp "V" gulls, not arcs: arcs in a row read as a
+    // row of closed eyes (or a frowning mouth) at contact-sheet size.
     function gull(x, y, s, flap) {
       context.beginPath();
       context.moveTo(x - 10 * s, y - 2 * s - flap);
@@ -173,35 +302,11 @@ export function createRenderer(canvas) {
     context.strokeStyle = 'rgba(60,30,10,0.55)';
     context.lineWidth = 2.5;
     gull(dx, dy, 1, dflap);
-    // Two birds crossing the evening sky, and a lower flock of three.
-    // Both paths stay inside the frame with room to breathe: the old
-    // pair started at x=-100, so on the title it hugged the left edge
-    // with one bird half-clipped, and the flock arrived hard against
-    // the right edge. Now the pair travels 90..1110 and the flock
-    // 90..1190, never touching either edge. The flock birds are
-    // staggered in height (0/-7/+5 px) so they never sit on one
-    // baseline as a row of eyes.
-    // The pair flies LOW, not high: at the old by=62 its strokes
-    // spanned y 45..76, entirely inside the HUD bar's band (the bar
-    // ends at y=78 and is opaque since round 16), so in every play
-    // frame the pair was invisible — only the title frame, which has
-    // no HUD bar, ever showed it. At by=102 the strokes span y
-    // 82..113: worst-case wing tip 82 clears the bar bottom by 4 px,
-    // and the pair sits in open sky above the turkey's head and the
-    // mid-sky clouds, so it reads in play, danger and title frames.
-    // The end screen used to be the exception: its ESCAPED! letters
-    // span y 85..165, so a pair at by=102 flies straight across the
-    // gold E — the first version of this change put two dark Vs on
-    // the E's top bar and counter, reading as smudges on the letter,
-    // not birds (cropped-zoom verified), so the pair stayed at the
-    // old by=62, hidden behind the HUD bar, through round 19.
-    // Round 20 finally gives it a band of its own, measured off the
-    // end frame: the subtitle pill ends at y=206, the score panel's
-    // right edge is x=820, the pale cloud bottom is ~y=235, the barn
-    // roof starts at x~1102 and the ridge crest sits at ~y=300 — so
-    // the open pink sky at x 850..1056, y ~244..274 is clear of
-    // everything (E, pill, panel, cloud, barn, ridge, fireworks),
-    // and the pair flies there at by=258 instead of hiding.
+    // Pair at by=102 in play (strokes y 82..113, 4 px clear of the
+    // opaque HUD bar ending y=78) and at by=258 on the end screen
+    // (open sky x 850..1056, y ~244..274, clear of E, pill, panel,
+    // cloud, barn, ridge, fireworks — measured off the end frame);
+    // the flock is staggered (0/-7/+5 px) so it never reads as eyes.
     const over = screen === SCREEN_OVER;
     const bx = over
       ? 850 + (state.elapsed * 20) % 160
@@ -209,7 +314,7 @@ export function createRenderer(canvas) {
     const by = (over ? 258 : 102) + Math.sin(state.elapsed * 0.8) * 7;
     context.strokeStyle = 'rgba(60,30,10,0.75)';
     context.lineWidth = 3;
-    for (const [off, dy2] of [[0, 0], [46, -6]]) {
+    for (const [off, dy2] of BIRD_PAIR) {
       const flap = Math.sin(state.elapsed * 6 + off) * 5;
       gull(bx + off, by + dy2, 1, flap);
     }
@@ -217,7 +322,7 @@ export function createRenderer(canvas) {
     const fy2 = 152 + Math.sin(state.elapsed * 0.6 + 2) * 8;
     context.strokeStyle = 'rgba(60,30,10,0.6)';
     context.lineWidth = 2.5;
-    for (const [off, dy2] of [[0, 0], [34, -7], [62, 5]]) {
+    for (const [off, dy2] of BIRD_FLOCK) {
       const flap = Math.sin(state.elapsed * 5 + off) * 4;
       gull(fx2 + off, fy2 + dy2, 1, flap);
     }
@@ -374,10 +479,7 @@ export function createRenderer(canvas) {
 
   // ---- ground and mid scenery ----
   function drawGround(state, stage) {
-    const g = context.createLinearGradient(0, FIELD.groundY, 0, FIELD.height);
-    g.addColorStop(0, stage.ground);
-    g.addColorStop(1, stage.groundDark);
-    context.fillStyle = g;
+    context.fillStyle = stage === STAGES[state.stage] ? groundGrads[state.stage] : groundGradCool;
     context.fillRect(0, FIELD.groundY, FIELD.width, FIELD.height - FIELD.groundY);
     // A dirt track the turkey runs on: a pale worn centre, two dark
     // wheel ruts, pebbles, footprints and fallen leaves — a road with
@@ -401,13 +503,12 @@ export function createRenderer(canvas) {
       context.stroke();
     }
     // Pebbles and fallen leaves on the track, scrolling with the world.
-    const leafCols = ['#e8a13a', '#d94f30', '#f2c14e'];
     for (let i = 0; i < 34; i += 1) {
       const wx = i * 197 + ((i * 89) % 60);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
       const py = FIELD.groundY + 40 + ((i * 37) % 32);
       if (i % 3 === 0) ellipse(sx, py, 3 + (i % 3), 2, 'rgba(90,55,20,0.5)');
-      else if (i % 5 === 0) ellipse(sx, py, 5, 3, leafCols[i % 3]);
+      else if (i % 5 === 0) ellipse(sx, py, 5, 3, LEAF_COLS[i % 3]);
     }
     // Footprints marching along the track — a pair per stride.
     context.fillStyle = 'rgba(60,32,8,0.35)';
@@ -441,20 +542,19 @@ export function createRenderer(canvas) {
       const wx = i * 263 + ((i * 71) % 80);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
       const ly = FIELD.groundY + 8 + ((i * 29) % 22);
-      ellipse(sx, ly, 6, 3.5, leafCols[i % 3]);
+      ellipse(sx, ly, 6, 3.5, LEAF_COLS[i % 3]);
     }
     // A few tiny autumn wildflowers on the verge — small dots of
     // orange and gold that break up the long empty stretches of track
     // between the farmer and the next oven, without shouting for
     // attention. All three ground details are pure functions of the
     // scroll, so they never touch the gameplay random stream.
-    const flowerCols = ['#e86a1e', '#f2c14e', '#d94f30'];
     for (let i = 0; i < 10; i += 1) {
       const wx = i * 331 + ((i * 97) % 90);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
       const fy = FIELD.groundY + 10 + ((i * 53) % 20);
-      ellipse(sx, fy, 3, 3, flowerCols[i % 3]);
-      ellipse(sx + 4, fy - 4, 2, 2, flowerCols[(i + 1) % 3]);
+      ellipse(sx, fy, 3, 3, FLOWER_COLS[i % 3]);
+      ellipse(sx + 4, fy - 4, 2, 2, FLOWER_COLS[(i + 1) % 3]);
     }
     for (const s of state.scenery) {
       const sx = TURKEY_X + (s.at - state.distance) * PX_PER_M;
@@ -596,16 +696,23 @@ export function createRenderer(canvas) {
     // mouth: at contact-sheet size the oven used to read as a plain
     // dark box with a thin wisp, so the glow now wraps the whole oven
     // and the halo lifts it off the sky behind it.
-    const glow = context.createRadialGradient(sx + wPx / 2, gy - 30, 6, sx + wPx / 2, gy - 30, 165);
+    const ocx = sx + wPx / 2;
+    // Ground glow + halo stay live gradients, not sprites: the glow
+    // covers ~12% of the frame and a pre-rendered sprite's
+    // premultiplied-alpha rounding shifts the whole soft falloff by
+    // a few levels (PNG diff: 11.9% of pixels, max Δ 8). Two
+    // gradients per oven is cheap; the per-particle ember gradients
+    // were the real churn (42/draw) and those stay sprites.
+    const glow = context.createRadialGradient(ocx, gy - 30, 6, ocx, gy - 30, 165);
     glow.addColorStop(0, 'rgba(255,122,30,0.62)');
     glow.addColorStop(1, 'rgba(255,122,30,0)');
     context.fillStyle = glow;
     context.fillRect(sx - 110, gy - 120, wPx + 220, 130);
-    const halo = context.createRadialGradient(sx + wPx / 2, gy - 72, 4, sx + wPx / 2, gy - 72, 88);
+    const halo = context.createRadialGradient(ocx, gy - 72, 4, ocx, gy - 72, 88);
     halo.addColorStop(0, 'rgba(255,150,50,0.4)');
     halo.addColorStop(1, 'rgba(255,150,50,0)');
     context.fillStyle = halo;
-    context.fillRect(sx + wPx / 2 - 90, gy - 162, 180, 180);
+    context.fillRect(ocx - 90, gy - 162, 180, 180);
     // Body, chimney and glowing door.
     context.fillStyle = PALETTE.ovenBody;
     pill(sx, gy - 56, wPx, 56, 8, PALETTE.ovenBody);
@@ -616,15 +723,10 @@ export function createRenderer(canvas) {
     // still frame: the drifting ember particles alone were too thin
     // and pale at half size. Tallest in the middle, swaying slightly.
     const cx = sx + wPx / 2;
-    const tongues = [
-      { dx: -wPx * 0.26, h: 30, w: 13, ph: 0 },
-      { dx: 0, h: 46, w: 20, ph: 1.3 },
-      { dx: wPx * 0.26, h: 32, w: 13, ph: 2.6 },
-    ];
-    for (const tg of tongues) {
+    for (const tg of TONGUES) {
       const flick = 1 + Math.sin(t * 11 + tg.ph + sx * 0.13) * 0.16;
       const th = tg.h * flick;
-      const tx = cx + tg.dx + Math.sin(t * 7 + tg.ph) * 2;
+      const tx = cx + tg.dx * wPx + Math.sin(t * 7 + tg.ph) * 2;
       const base = gy - 56;
       const fg = context.createLinearGradient(0, base - th, 0, base);
       fg.addColorStop(0, 'rgba(255,236,130,0.95)');
@@ -643,12 +745,8 @@ export function createRenderer(canvas) {
       context.ellipse(tx, base - th * 0.3, tg.w * 0.22, th * 0.28, 0, 0, Math.PI * 2);
       context.fill();
     }
-    const door = context.createLinearGradient(0, gy - 52, 0, gy - 8);
-    door.addColorStop(0, '#ffd23e');
-    door.addColorStop(0.5, '#ff7a1e');
-    door.addColorStop(1, '#c22e00');
-    context.fillStyle = door;
-    pill(sx + wPx / 2 - 22, gy - 40, 44, 34, 6, door);
+    context.fillStyle = ovenDoorGrad;
+    pill(sx + wPx / 2 - 22, gy - 40, 44, 34, 6, ovenDoorGrad);
     context.strokeStyle = '#1c1c22';
     context.lineWidth = 3;
     context.beginPath();
@@ -723,20 +821,12 @@ export function createRenderer(canvas) {
       context.lineTo(sx + 8 + i * 5, cy + 11);
       context.stroke();
     }
-    const glint = context.createRadialGradient(sx + 4, cy - 6, 1, sx + 4, cy - 6, 12);
-    glint.addColorStop(0, 'rgba(255,255,255,0.7)');
-    glint.addColorStop(1, 'rgba(255,255,255,0)');
-    context.fillStyle = glint;
-    context.fillRect(sx - 8, cy - 18, 24, 24);
+    context.drawImage(whiteGlintSprite, sx - 8, cy - 18, 24, 24);
   }
 
   function drawGoldenPumpkin(sx, y, t) {
     const bob = Math.sin(t * 2.4) * 4;
-    const glow = context.createRadialGradient(sx, FIELD.groundY - y + bob, 4, sx, FIELD.groundY - y + bob, 46);
-    glow.addColorStop(0, 'rgba(255,210,62,0.65)');
-    glow.addColorStop(1, 'rgba(255,210,62,0)');
-    context.fillStyle = glow;
-    context.fillRect(sx - 50, FIELD.groundY - y - 50 + bob, 100, 100);
+    context.drawImage(goldSprite, sx - 46, FIELD.groundY - y - 46 + bob, 92, 92);
     drawPumpkin(sx, FIELD.groundY - y + bob, 20);
     context.fillStyle = '#fff6e0';
     context.beginPath();
@@ -762,11 +852,7 @@ export function createRenderer(canvas) {
     context.ellipse(0, -6, 5, 10, 0, 0, Math.PI * 2);
     context.fill();
     context.restore();
-    const glow = context.createRadialGradient(sx, cy, 2, sx, cy, 30);
-    glow.addColorStop(0, 'rgba(255,255,255,0.5)');
-    glow.addColorStop(1, 'rgba(255,255,255,0)');
-    context.fillStyle = glow;
-    context.fillRect(sx - 30, cy - 30, 60, 60);
+    context.drawImage(featherGlowSprite, sx - 30, cy - 30, 60, 60);
   }
 
   // A carving knife in flight — bigger than before, with a dark outline
@@ -1011,11 +1097,16 @@ export function createRenderer(canvas) {
     context.rotate(tilt);
     context.scale(squashX * (pose === 'jump' ? 0.96 : 1) * scale, squashY * (pose === 'jump' ? 1.06 : 1) * scale);
     if (p.pumpkin > 0) {
-      const glow = context.createRadialGradient(0, -44, 6, 0, -44, 110);
-      glow.addColorStop(0, 'rgba(255,210,62,0.55)');
-      glow.addColorStop(1, 'rgba(255,210,62,0)');
-      context.fillStyle = glow;
-      context.fillRect(-110, -160, 220, 220);
+      // Gold aura as the shared gold sprite: same circle, peak alpha
+      // 0.55 via globalAlpha (sprite is baked at 0.65), clipped to
+      // the old fillRect so the 6 px the sprite would overhang stays out.
+      context.save();
+      context.beginPath();
+      context.rect(-110, -160, 220, 220);
+      context.clip();
+      context.globalAlpha = 0.55 / 0.65;
+      context.drawImage(goldSprite, -110, -154, 220, 220);
+      context.restore();
       // Orbiting golden sparks and a pulsing ring: the invincible aura
       // reads as a ring of light around the bird, not just a wash.
       context.strokeStyle = `rgba(255,210,62,${0.5 + Math.sin(state.elapsed * 5) * 0.2})`;
@@ -1277,13 +1368,10 @@ export function createRenderer(canvas) {
     context.save();
     context.translate(fx + 4, gy + 6);
     context.scale(1, 0.25);
-    const patch = context.createRadialGradient(0, 0, 4, 0, 0, 92);
-    patch.addColorStop(0, 'rgba(247,220,158,0.55)');
-    patch.addColorStop(1, 'rgba(247,220,158,0)');
-    context.fillStyle = patch;
     context.beginPath();
     context.arc(0, 0, 78, 0, Math.PI * 2);
-    context.fill();
+    context.clip();
+    context.drawImage(farmerPatchSprite, -92, -92, 184, 184);
     context.restore();
     // Soft contact shadow under the farmer, wider now he is bigger.
     ellipse(fx + 4, gy + 4, 32, 7, 'rgba(20,10,2,0.28)');
@@ -1502,12 +1590,15 @@ export function createRenderer(canvas) {
   // pale tip and a quill line, embers are rising flame tongues drawn
   // additively so they glow, and gold sparkles are four-point stars.
   function drawParticles(state) {
+    let drawn = 0; // MAX_DRAW_PARTICLES bound, shared by both passes
     // Additive pass first: embers and sparkles glow against sky and
     // ground alike instead of sitting on top as flat discs.
     context.save();
     context.globalCompositeOperation = 'lighter';
     for (const p of state.particles) {
-      if (!p.active) continue;
+      if (!p.active || (p.kind !== 2 && p.kind !== 3)) continue;
+      if (drawn >= MAX_DRAW_PARTICLES) break;
+      drawn += 1;
       const a = clamp(p.life / p.max, 0, 1);
       if (p.kind === 2) { // embers — a rising flame tongue
         // An ember only burns above a live oven. If its oven was hit
@@ -1527,14 +1618,17 @@ export function createRenderer(canvas) {
         if (ovenAlpha === 0) continue;
         const ea = a * ovenAlpha;
         const h = p.size * (2.4 + (1 - a) * 1.8);
-        const g = context.createRadialGradient(p.x, p.y, 0, p.x, p.y - h * 0.4, h);
-        g.addColorStop(0, `rgba(255,220,110,${0.85 * ea})`);
-        g.addColorStop(0.5, `rgba(255,122,30,${0.6 * ea})`);
-        g.addColorStop(1, 'rgba(255,80,10,0)');
-        context.fillStyle = g;
+        // Ember glow as a sprite: the same radial circle the gradient
+        // painted (centre p.y - h*0.4, radius h), clipped to the old
+        // flame ellipse, alpha from globalAlpha — no gradient object
+        // and no template strings per ember per frame.
+        context.save();
+        context.globalAlpha = ea;
         context.beginPath();
         context.ellipse(p.x, p.y - h * 0.3, p.size * 1.2, h, 0, 0, Math.PI * 2);
-        context.fill();
+        context.clip();
+        context.drawImage(emberSprite, p.x - h, p.y - h * 0.4 - h, h * 2, h * 2);
+        context.restore();
         // Bright core so the flame reads even at contact-sheet size.
         context.fillStyle = `rgba(255,240,170,${0.9 * ea})`;
         context.beginPath();
@@ -1558,7 +1652,9 @@ export function createRenderer(canvas) {
     }
     context.restore();
     for (const p of state.particles) {
-      if (!p.active) continue;
+      if (!p.active || (p.kind !== 0 && p.kind !== 1)) continue;
+      if (drawn >= MAX_DRAW_PARTICLES) break;
+      drawn += 1;
       const a = clamp(p.life / p.max, 0, 1);
       if (p.kind === 0) { // dust — soft puff, pale core, grows as it fades
         const r = p.size * (1.6 - a * 0.6);
@@ -1607,11 +1703,13 @@ export function createRenderer(canvas) {
     const gap = state.farmer.gap;
     if (gap > 12) return;
     const a = (1 - gap / 12) * (0.35 + Math.sin(state.elapsed * 7) * 0.12);
-    const g = context.createRadialGradient(640, 240, 170, 640, 240, 480);
-    g.addColorStop(0, 'rgba(200,20,10,0)');
-    g.addColorStop(1, `rgba(200,20,10,${a})`);
-    context.fillStyle = g;
+    // Cached gradient (alpha 1 at the rim) + globalAlpha: identical
+    // paint to a gradient rebuilt with the rim alpha baked in.
+    context.save();
+    context.globalAlpha = a;
+    context.fillStyle = vignetteGrad;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
+    context.restore();
   }
 
   // ---- HUD ----
@@ -1635,10 +1733,7 @@ export function createRenderer(canvas) {
     text('ESCAPE', barX, 34, 15, PALETTE.muted, 'left', '800');
     pill(barX, barY + 12, barW, 16, 8, 'rgba(255,255,255,0.16)');
     const prog = clamp(state.distance / TOTAL_DISTANCE, 0, 1);
-    const pg = context.createLinearGradient(barX, 0, barX + barW, 0);
-    pg.addColorStop(0, '#ffd23e');
-    pg.addColorStop(1, '#ff7a1e');
-    pill(barX, barY + 12, Math.max(16, barW * prog), 16, 8, pg);
+    pill(barX, barY + 12, Math.max(16, barW * prog), 16, 8, hudProgGrad);
     for (let i = 1; i < 4; i += 1) {
       const tx = barX + (barW * i) / 4;
       context.fillStyle = 'rgba(255,246,224,0.9)';
@@ -1695,10 +1790,7 @@ export function createRenderer(canvas) {
     }
     // Stamina bar, bottom left, with a dash hint.
     pill(24, 428, 220, 14, 7, 'rgba(20,10,2,0.6)');
-    const sg = context.createLinearGradient(24, 0, 244, 0);
-    sg.addColorStop(0, '#7dd3fc');
-    sg.addColorStop(1, '#38bdf8');
-    pill(24, 428, Math.max(10, 220 * state.player.stamina / TURKEY.staminaMax), 14, 7, sg);
+    pill(24, 428, Math.max(10, 220 * state.player.stamina / TURKEY.staminaMax), 14, 7, hudStamGrad);
     text('DASH — SHIFT', 254, 440, 14, 'rgba(255,246,224,0.85)', 'left', '700');
     if (state.player.shield) text('🛡 SHIELD', 24, 412, 16, '#fff', 'left', '800');
     if (state.player.pumpkin > 0) text(`★ GOLDEN ${Math.ceil(state.player.pumpkin)}s`, 24, 392, 18, '#ffd23e', 'left', '900');
@@ -1721,12 +1813,7 @@ export function createRenderer(canvas) {
   // ---- panels ----
   function drawTitle(state, best) {
     // A dark gradient at the top and bottom so the text reads over the scene.
-    const g = context.createLinearGradient(0, 0, 0, FIELD.height);
-    g.addColorStop(0, 'rgba(20,8,2,0.55)');
-    g.addColorStop(0.35, 'rgba(20,8,2,0)');
-    g.addColorStop(0.75, 'rgba(20,8,2,0.15)');
-    g.addColorStop(1, 'rgba(20,8,2,0.7)');
-    context.fillStyle = g;
+    context.fillStyle = titleGrad;
     context.fillRect(0, 0, FIELD.width, FIELD.height);
     // The whole title text block sits 8 px higher than before (kicker
     // 72→64, title 140→132, subtitle pill 149→141, panel 188→180):
@@ -1817,12 +1904,9 @@ export function createRenderer(canvas) {
       // clear of the HUD above (dots stay below y≈105), clear of the
       // subtitle (x 90–270 and 1010–1190, the text lives x 400–880)
       // and clear of the score panel below (dots stay above y≈195).
-      const glow = context.createRadialGradient(640, 120, 10, 640, 120, 260);
-      glow.addColorStop(0, 'rgba(255,190,60,0.5)');
-      glow.addColorStop(1, 'rgba(255,190,60,0)');
-      context.fillStyle = glow;
+      context.fillStyle = overGlowGrad;
       context.fillRect(380, -40, 520, 320);
-      for (const [bcx, bcy] of [[180, 150], [1100, 150]]) {
+      for (const [bcx, bcy] of BURSTS) {
         // Radial streaks from the burst centre first, then the dots
         // on top: the old bursts were dots alone, and at half size
         // they read as scattered bubbles floating over the headline.
@@ -1903,7 +1987,7 @@ export function createRenderer(canvas) {
       // (distance 1500), so the tufts can sit at fixed screen x too,
       // clear of the stamina bar below (top y=428) and the SHIELD
       // label to the left.
-      for (const [gx, gh, gc] of [[128, 15, '#d99a44'], [168, 18, '#4e3018'], [208, 14, '#d99a44'], [238, 12, '#d99a44']]) {
+      for (const [gx, gh, gc] of END_TUFTS) {
         context.strokeStyle = gc;
         context.lineWidth = 2.5;
         context.beginPath();
@@ -1965,61 +2049,19 @@ export function createRenderer(canvas) {
   // ---- one frame ----
   function drawField(state, screen) {
     const stage = STAGES[state.stage];
-    // Finals cover pass (colour temperature): the play frame and the
-    // title frame are both the farmyard (stage 0) in warm orange, so
-    // the top row of the contact sheet reads as one orange block
-    // twice. Only the PLAY screen's farmyard goes cool — sky toward
-    // riverbank blue, hills toward olive, ground toward khaki — so
-    // the cover reads as cool daylight against the title's warm
-    // sunset. The turkey, farmer, oven, trees, barn, sun and HUD
-    // keep their colours (only sky/ground/far-hill/grass keys are
-    // overridden; tree/leaf/sun/accent are not). Title (same stage,
-    // SCREEN_TITLE), danger (woods) and end (freedom fence) are
-    // untouched: the override is gated on screen === SCREEN_PLAY and
-    // stage === 0. It also applies in live play in the farmyard —
-    // the cover IS the play screen — which is the intended look.
-    // The turkey is drawn 12% bigger everywhere, and 30% bigger on
-    // the title — and, since round 21, standing in the open sky
-    // right of the instruction panel instead of underneath it
-    // (centre x 361 -> 1040, dx +679): the panel's bottom edge used
-    // to cap the bird at 1.20 (head top y=278 at 1.20, panel bottom
-    // 268, 10 px gap; at 1.30 the head would reach y=270 and touch
-    // it). Moved, the head (x ~1058-1105, top y~270) sits wholly
-    // clear of the panel (right edge x=1030), the tail fan (top
-    // y~275-283) still clears the panel bottom by >=7 px where it
-    // passes under the panel's right end, the beak (~1105) stays
-    // ~25 px clear of the right barn's roof (~1130), and the feet
-    // stay clear of the foreground pumpkin at x=1096 (the body at
-    // pumpkin height only reaches x~1039). The OVEN! label ends
-    // ~x920, the tail starts ~x975. Measured off the screenshot,
-    // not guessed — see the round-21 numbers in the commit.
-    // On the escape screen it is 80% bigger and leaping
-    // with its wings thrown wide: the end frame's hero used to stand
-    // behind the white fence pickets, smaller than the farmer at the
-    // left edge, and at 1.4x it still read as a supporting player —
-    // the judges' first priority for the finals is the end-frame
-    // turkey as the hero. At 1.8x it owns the left-centre of the
-    // frame, in front of the fence (drawn after the gate, as before).
-    // The scale pivots on the feet, and the clearances are measured
-    // off the 1.8x screenshot, not guessed: the head top sits
-    // ~y257 (snood tip 252), ~46 px clear of the subtitle pill
-    // bottom (206); the tail-fan top ~y253, ~47 px clear of the
-    // pill; the beak tip ~x427, ~43 px clear of the score panel's
-    // left edge (470); the tail's lowest tip passes ~4 px above the
-    // dropped knife (blade top y390 at x210..215), and the fan
-    // stays clear of the FREEDOM band (y 249..270) at its height.
-    // The farmer is drawn a touch smaller there, so he stops
-    // outshining the bird he failed to catch.
+    // Play farmyard goes cool (COOL) so the contact sheet's top row
+    // is not one orange block twice; title/danger/end are untouched.
+    // Turkey 1.12x in play, 1.30x on the title (moved right of the
+    // panel, centre x 1040, dx +679: head top ~y270 clears the panel
+    // right edge x=1030, beak ~1105 stays ~25 px clear of the barn
+    // roof ~1130), 1.8x leaping on the escape screen (head top ~y257,
+    // ~46 px clear of the subtitle pill; beak ~x427, ~43 px clear of
+    // the score panel). All clearances measured off screenshots.
     const escaped = screen === SCREEN_OVER && state.escaped;
     const turkeyScale = screen === SCREEN_TITLE ? 1.30 : escaped ? 1.8 : 1.12;
     const turkeyDx = screen === SCREEN_TITLE ? 679 : 0;
     const playCool = screen === SCREEN_PLAY && state.stage === 0;
-    const view = playCool ? {
-      ...stage,
-      skyTop: '#aed6ea', skyMid: '#86b8d6', skyBot: '#6f9cc4',
-      hillFar: '#7d7a52', hillMid: '#655f42', hillNear: '#4e4a33',
-      ground: '#96703a', groundDark: '#77572a', grass: '#b9a24e',
-    } : stage;
+    const view = playCool ? { ...stage, ...COOL } : stage;
     drawSky(state, view, screen);
     drawHills(state, view, screen);
     drawGround(state, view);
@@ -2081,11 +2123,7 @@ export function createRenderer(canvas) {
     if (screen === SCREEN_TITLE) {
       const gx = TURKEY_X + TURKEY.width / 2 + turkeyDx;
       const gy = FIELD.groundY - 55;
-      const glow = context.createRadialGradient(gx, gy, 10, gx, gy, 170);
-      glow.addColorStop(0, 'rgba(255,232,170,0.6)');
-      glow.addColorStop(0.55, 'rgba(255,222,150,0.28)');
-      glow.addColorStop(1, 'rgba(255,222,150,0)');
-      context.fillStyle = glow;
+      context.fillStyle = titleGlowGrad;
       context.fillRect(gx - 170, gy - 170, 340, 340);
     }
     // Escape only: the same warm pool behind the hero turkey. The
@@ -2106,11 +2144,7 @@ export function createRenderer(canvas) {
     if (escaped) {
       const gx = TURKEY_X + TURKEY.width / 2;
       const gy = FIELD.groundY - 80;
-      const glow = context.createRadialGradient(gx, gy, 10, gx, gy, 210);
-      glow.addColorStop(0, 'rgba(255,232,170,0.62)');
-      glow.addColorStop(0.55, 'rgba(255,222,150,0.28)');
-      glow.addColorStop(1, 'rgba(255,222,150,0)');
-      context.fillStyle = glow;
+      context.fillStyle = escapeGlowGrad;
       context.fillRect(gx - 210, gy - 210, 420, 420);
     }
     drawTurkey(state, turkeyScale, escaped, turkeyDx);
