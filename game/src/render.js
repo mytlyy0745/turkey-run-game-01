@@ -2233,7 +2233,7 @@ export function createRenderer(canvas) {
         : state.popKind === 1 ? 'GOLDEN!' : 'SHIELD!';
       text(plabel, pcx, pcy - 52 - pk * 22, 22, '#ffd23e', 'center', '900');
     }
-    drawFarmer(state, escaped ? 1.0 : 1.22, screen);
+    drawFarmer(state, escaped ? 0.9 : 1.22, screen);
     // Haystacks stand in front, so a hiding turkey really disappears.
     // A passed haystack fades with the rest, for the same reason: the
     // farmer at the left edge must never hide behind one.
