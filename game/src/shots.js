@@ -148,6 +148,8 @@ export function stageShot(name, world) {
     for (let i = 0; i < START_SECONDS / STEP; i += 1) {
       world.step(STEP, { jump: false, dash: false, duck: false, left: false, right: false }, true);
     }
+    // 6 s of 1/60 steps sums to 5.99999... (blink OFF); snap to 6.0 (ON).
+    world.state.elapsed = Math.round(world.state.elapsed);
     return { screen: SCREEN_TITLE, best: 0 };
   }
   if (name === 'play') {
