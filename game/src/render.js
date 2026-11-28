@@ -725,7 +725,7 @@ export function createRenderer(canvas) {
     // still belongs to the gate it names. In the last 130 m of a run
     // the gate slides in from the right and the label travels with
     // it, always on the approach side.
-    text('FREEDOM', fx - 140, FIELD.groundY - 132, 26, '#ffd23e', 'center', '900');
+    text('FREEDOM', fx - 140, FIELD.groundY - 132, 26, '#ffe45e', 'center', '900');
   }
 
   // ---- hazards and pickups ----
