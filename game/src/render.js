@@ -19,7 +19,7 @@ const STAGE_LEN = TOTAL_DISTANCE / STAGES.length;
 // top row is not one orange block twice. Single source for both the
 // live override and the cached gradients below.
 const COOL = {
-  skyTop: '#aed6ea', skyMid: '#86b8d6', skyBot: '#6f9cc4',
+  skyTop: '#a4d0ec', skyMid: '#7cb4dd', skyBot: '#5f97c6',
   hillFar: '#7d7a52', hillMid: '#655f42', hillNear: '#4e4a33',
   ground: '#96703a', groundDark: '#77572a', grass: '#b9a24e',
 };
