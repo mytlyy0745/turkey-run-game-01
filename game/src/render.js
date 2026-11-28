@@ -4,7 +4,7 @@
 // trees, fences and pumpkins, a turkey you can recognise at a glance and
 // a farmer in hot pursuit, with dust, feathers, embers and falling leaves
 // on top, and a big clear HUD. No image, font or sound ever leaves game/.
-import { FIELD, PX_PER_M, TURKEY_X, TOTAL_DISTANCE, TURKEY, FARMER, LIVES, FONT, PALETTE, STAGES } from './config.js';
+import { FIELD, PX_PER_M, TURKEY_X, TOTAL_DISTANCE, TURKEY, FARMER, LIVES, FONT, PALETTE, STAGES, PICKUP } from './config.js';
 import { KIND_OVEN, KIND_FENCE, KIND_BALE, KIND_HAYSTACK, KIND_CORN, KIND_PUMPKIN, KIND_FEATHER, KIND_KNIFE } from './world.js';
 
 export const SCREEN_TITLE = 'title';
@@ -1009,10 +1009,10 @@ export function createRenderer(canvas) {
     // Landing dust ring: spreads and fades as the squash settles.
     if (p.squash > 0 && !air) {
       const k = 1 - p.squash;
-      context.strokeStyle = `rgba(240,214,170,${p.squash * 0.55})`;
-      context.lineWidth = 3;
+      context.strokeStyle = `rgba(240,214,170,${p.squash * 0.7})`;
+      context.lineWidth = 4;
       context.beginPath();
-      context.ellipse(cx, gy + 3, 22 + k * 42, 6 + k * 5, 0, 0, Math.PI * 2);
+      context.ellipse(cx, gy + 3, 22 + k * 54, 6 + k * 6, 0, 0, Math.PI * 2);
       context.stroke();
     }
     context.save();
@@ -1716,10 +1716,13 @@ export function createRenderer(canvas) {
         context.fill();
       }
     }
-    // Combo pill under the score.
+    // COMBO pill bounces per pickup, gold at the x5 cap.
     if (state.combo >= 2) {
-      pill(30, 86, 150, 34, 10, 'rgba(255,122,30,0.9)');
-      text(`COMBO x${state.combo}`, 105, 110, 20, '#fff6e0', 'center', '900');
+      const bp = 1 + 0.3 * Math.max(0, state.comboPop) / 0.22;
+      const gold = state.combo >= PICKUP.comboMax;
+      pill(105 - 75 * bp, 103 - 17 * bp, 150 * bp, 34 * bp, 10,
+        gold ? 'rgba(255,210,62,0.95)' : 'rgba(255,122,30,0.9)');
+      text(`COMBO x${state.combo}`, 105, 110, 20, gold ? '#3a2400' : '#fff6e0', 'center', '900');
     }
     // Stamina bar, bottom left, with a dash hint.
     pill(24, 428, 220, 14, 7, 'rgba(20,10,2,0.6)');
@@ -2153,6 +2156,20 @@ export function createRenderer(canvas) {
       context.fillRect(gx - 210, gy - 210, 420, 420);
     }
     drawTurkey(state, turkeyScale, escaped, turkeyDx);
+    // Pickup pop: gold ring + payoff text at the bird, 0.35 s.
+    if (state.pop > 0 && screen === SCREEN_PLAY) {
+      const pk = 1 - state.pop / 0.35;
+      const pcx = TURKEY_X + TURKEY.width / 2 + turkeyDx;
+      const pcy = FIELD.groundY - state.player.y - 44;
+      context.strokeStyle = `rgba(255,210,62,${(1 - pk) * 0.9})`;
+      context.lineWidth = 4;
+      context.beginPath();
+      context.arc(pcx, pcy, 40 + pk * 34, 0, Math.PI * 2);
+      context.stroke();
+      const plabel = state.popKind === 0 ? `+${PICKUP.cornPoints * state.combo}`
+        : state.popKind === 1 ? 'GOLDEN!' : 'SHIELD!';
+      text(plabel, pcx, pcy - 52 - pk * 22, 22, '#ffd23e', 'center', '900');
+    }
     drawFarmer(state, escaped ? 1.0 : 1.22, screen);
     // Haystacks stand in front, so a hiding turkey really disappears.
     // A passed haystack fades with the rest, for the same reason: the
@@ -2175,8 +2192,17 @@ export function createRenderer(canvas) {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.fillStyle = PALETTE.backdrop;
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.setTransform(view.scale, 0, 0, view.scale, view.x, view.y);
+    // Knife-hit shake + white hit flash, play only: both are functions
+    // of elapsed/state timers, so the same run paints the same frame,
+    // and neither can freeze onto the end screen (step() stops there).
+    const shx = screen === SCREEN_PLAY && state.shake > 0 ? Math.sin(state.elapsed * 71) * 5 * state.shake : 0;
+    const shy = screen === SCREEN_PLAY && state.shake > 0 ? Math.cos(state.elapsed * 63) * 4 * state.shake : 0;
+    context.setTransform(view.scale, 0, 0, view.scale, view.x + shx * view.scale, view.y + shy * view.scale);
     drawField(state, screen);
+    if (screen === SCREEN_PLAY && state.hitFlash > 0) {
+      context.fillStyle = `rgba(255,255,255,${state.hitFlash * 1.2})`;
+      context.fillRect(0, 0, FIELD.width, FIELD.height);
+    }
     if (screen === SCREEN_TITLE) drawTitle(state, best);
     else if (screen === SCREEN_PAUSED) { drawHud(state, best, screen); drawPaused(); }
     // Over screen: the celebration is drawn FIRST and the HUD last.

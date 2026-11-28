@@ -22,12 +22,13 @@ export function createInput(target) {
   let duck = false;
   let dash = false;
   let actions = 0;
+  let jumpBuf = 0; // frames left of a buffered jump press (~0.1 s at 60 fps)
 
   window.addEventListener('keydown', (event) => {
     if (LEFT.has(event.code)) left = true;
     else if (RIGHT.has(event.code)) right = true;
     else if (JUMP.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_JUMP;
+      if (!event.repeat) { actions |= ACTION_JUMP; jumpBuf = 6; }
     } else if (DUCK.has(event.code)) duck = true;
     else if (DASH.has(event.code)) dash = true;
     else if (PAUSE.has(event.code)) {
@@ -46,11 +47,12 @@ export function createInput(target) {
     else if (DASH.has(event.code)) dash = false;
   });
   window.addEventListener('blur', () => {
-    left = false; right = false; duck = false; dash = false;
+    left = false; right = false; duck = false; dash = false; jumpBuf = 0;
   });
   target.addEventListener('pointerdown', (event) => {
     event.preventDefault();
     actions |= ACTION_JUMP;
+    jumpBuf = 6;
   });
 
   return {
@@ -59,6 +61,14 @@ export function createInput(target) {
       return { left, right, duck, dash };
     },
     takeActions() {
+      // Buffered jump: re-assert for a few frames, so the next
+      // grounded step jumps. Never while duck is held (that would
+      // jump the bird into the high knife it was ducking). Pilots
+      // drive world.step() directly, so their runs are untouched.
+      if (jumpBuf > 0) {
+        jumpBuf -= 1;
+        if (!duck) actions |= ACTION_JUMP;
+      }
       const taken = actions;
       actions = 0;
       return taken;
