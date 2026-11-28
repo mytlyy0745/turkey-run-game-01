@@ -505,3 +505,13 @@ Original 2D canvas side-view runner, plain HTML/JS, no libraries, no network, st
 - 失败/回滚：① 探针第一版刀窗口 d∈[-6,14] 漏掉了 238 的刀（在农夫脚边 d≈-12），窗口扩到 [-16,14] 后重扫，238 参照帧出现（195.8px），结论不变——是探针修正，不是代码回滚。② 腿第一版平行下垂（-10,4 / 4,6）实拍后改剪刀蹬（-16,0 / 8,8），第二版保留——是调参迭代。③ 封面刀距优先规则只在 /tmp 副本里实现并实拍，repo 的 shots.js 一个字没动。
 - 验证：改动前 4 张截图先重拍，与 repo 版像素级一致（Chrome 159 vs 143 的 JPEG 编码差：1-play 最多 413 像素差、最大 24 级，视觉相同；拍摄管线可信）；4 张新截图 1280×480 JPEG q82，0 console 报错、0 外部请求、9 文件全加载；`node --check` 全过；main.ts 两次输出 byte-identical（diff -r 干净；dossier 582,950 字节，**dossier 文本 163,236 字节，余量 604 字节**，基线 163,210，+26 字节全是注释）；vendor 未动。Chrome 与 serve 进程（8901/8902、9222）为本分支拍摄所起，收尾时清理。
 - 下一步建议：本分支三项画面改动均已验证通过，待总协调员排期三评委复评 + QA；若复评共识高于当前提交版（01a21fbe），按铁律在 Li 点头后提交；封面刀方向已三轮探针证伪（R15/R16/R3），不要再探。
+
+## 🔄 复赛 Round 3 合并（2026-11-28，合并员）——分支 finals/merged-r3，commit ff0005f，已 push，未提交
+
+- 合并：基线 818703d；A `finals/r3-cover-turkey` b807132 + B `finals/r3-stage` 28511d1。Merge commit 1b887ab，随后 ff0005f（精简注释 + 重拍截图）。分支 finals/merged-r3 已 push（HEAD ff0005f）。**未提交**：Li 2026-11-28 16:32 下令先不提交，当前参赛版保持 01a21fbe。
+- 冲突：render.js 零冲突自动合并（A、B 改动位置不重叠，grep 核对两处全在）；3-danger.jpg、4-end.jpg 二进制冲突，暂取 B 版后用合并版代码全部重拍覆盖；HANDOFF.md 自动合并，A、B 两节都在。
+- 结束帧二选一：**两个都留**。A 仅描边 / B 仅暖光池 / 合并两者三版同台新拍 + 裁剪放大对比：无打架；像素采样：暖光池地面带 +7 R，描边把身体/地面差从 B 的 14 拉回 18（R2 为 16），合并版两者兼得。
+- dossier 预算（权威量法：dossier.json 内 text 字段 UTF-8 字节数）：合并后未精简 163,830/163,840，仅余 10 字节且 shots.js 末 5 行被截断（"[Cut at…"）——超目标不硬交。精简 T1–T3 注释（实测 1301+1375+1465 字节 → 约 840 字节，只精简注释不动逻辑；T4/T5 未动）后 **161,228 字节，余量 2,612，无截断**。A、B 基线量法差异已查明：A 的 163,210 是对的（163,210+26+594=163,830 与实测分毫不差），B 的 162,925 是 trim 前旧值。
+- 截图：headless-shell 1255 + Playwright（/tmp/shoot-r3.mjs），1280×480 q82，种子不变（238/7/249/159）。70,861 / 81,439 / 71,265 / 88,441 字节；1-play 与 A 的 md5 完全一致；同台新拍 R2 基线逐张对比，变化只在改动处（play 1.0%、start 0.0%、danger 1.0%、end 1.4% 像素 >30 级，余为已知翅膀扇相位抖动）；2×2 总览图半尺寸检查通过，无回归。
+- 验证：main.ts 两次 byte-identical；node --check 全过；kit check 4 passed / 1 failed（transcripts_present，与 R2 相同）/ 15 skipped；base pilot 3/20（中位 1111m/3297.5）、strong 5/20（中位 864.5m/2878），与 R2 QA 逐数一致；公平性：无操作/一直冲/随机按键均被抓；end 种子 159 仍为 7130 分逃脱。详见 ~/workspace/make-fun/turkey-finals3/MERGE-R3.md。
+- 下一步：待三评委复评 + QA；若共识高于 R2 且 QA 全过，**等 Li 一句话再交**（铁律红线 2026-11-29 06:00 CST）。
