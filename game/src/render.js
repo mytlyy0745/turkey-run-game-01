@@ -507,7 +507,7 @@ export function createRenderer(canvas) {
       context.fill();
     }
     // Grass tufts on the verge above the track, sparse and three-bladed.
-    for (let i = 0; i < 34; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       const wx = i * 211 + ((i * 131) % 70);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
       const gy = FIELD.groundY + 4 + ((i * 41) % 26);
@@ -524,7 +524,7 @@ export function createRenderer(canvas) {
       context.stroke();
     }
     // A few flat fallen leaves resting on the verge.
-    for (let i = 0; i < 20; i += 1) {
+    for (let i = 0; i < 26; i += 1) {
       const wx = i * 263 + ((i * 71) % 80);
       const sx = ((wx - scroll) % (FIELD.width + 120) + FIELD.width + 120) % (FIELD.width + 120) - 60;
       const ly = FIELD.groundY + 8 + ((i * 29) % 22);
