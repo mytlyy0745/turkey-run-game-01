@@ -788,7 +788,7 @@ export function createRenderer(canvas) {
   // without the fade the frame always carries one lonely blade way
   // out on the right, flying at the barn instead of at the bird.
   // alpha is 1 until the knife is 8 m past the turkey and 0 by 28 m.
-  function drawKnife(sx, y, t, alpha) {
+  function drawKnife(sx, y, t, alpha, aim) {
     const a = alpha === undefined ? 1 : alpha;
     const cy = FIELD.groundY - y;
     const spin = t * 9;
@@ -827,6 +827,22 @@ export function createRenderer(canvas) {
     context.moveTo(sx - 38, cy + 10);
     context.lineTo(sx - 100, cy + 16);
     context.stroke();
+    // Forward speed lines, only when aim is given (far knife on the
+    // play screen): short faint streaks ahead of the blade along the
+    // knife-to-turkey line, so the throw reads as aimed at the bird
+    // instead of a blade lying at the farmer's feet.
+    if (aim !== undefined) {
+      const ca = Math.cos(aim), sa = Math.sin(aim);
+      for (const [po, len, al, lw] of [[-9, 52, 0.32, 2], [0, 68, 0.5, 3], [9, 52, 0.32, 2]]) {
+        const x0 = sx + ca * 36 - sa * po, y0 = cy + sa * 36 + ca * po;
+        context.strokeStyle = `rgba(255,255,255,${al})`;
+        context.lineWidth = lw;
+        context.beginPath();
+        context.moveTo(x0, y0);
+        context.lineTo(x0 + ca * len, y0 + sa * len);
+        context.stroke();
+      }
+    }
     // The blade itself, ~35% longer and wider than before, and
     // ~35% thicker again in the finals details pass (half-height
     // 8 -> 11). Length, position and spin are untouched.
@@ -1251,10 +1267,11 @@ export function createRenderer(canvas) {
     const windup = f.windup > 0;
     const close = gap < 16;
     const surging = f.surge > 0;
-    // No gap label on the title: the race has not started, so the
-    // metres mean nothing there and the pill is clutter at the
-    // left edge. It stays on every screen where the chase is live.
-    if (gap > 22 && screen !== SCREEN_TITLE) {
+    // No gap label on the title or the over screen: the race has
+    // not started / is over, so the metres mean nothing there and
+    // the pill is clutter at the left edge. It stays on every
+    // screen where the chase is live.
+    if (gap > 22 && screen !== SCREEN_TITLE && screen !== SCREEN_OVER) {
       const label = `${Math.round(gap)}m`;
       // The label never hugs the left edge: when the farmer is
       // clamped to the edge his label used to start at x=14, which
@@ -1699,11 +1716,11 @@ export function createRenderer(canvas) {
     sg.addColorStop(0, '#7dd3fc');
     sg.addColorStop(1, '#38bdf8');
     pill(24, 428, Math.max(10, 220 * state.player.stamina / TURKEY.staminaMax), 14, 7, sg);
-    text('DASH — SHIFT', 254, 440, 14, 'rgba(255,246,224,0.85)', 'left', '700');
+    text('DASH — SHIFT', 254, 440, 16, 'rgba(255,246,224,0.9)', 'left', '700');
     if (state.player.shield) text('🛡 SHIELD', 24, 412, 16, '#fff', 'left', '800');
     if (state.player.pumpkin > 0) text(`★ GOLDEN ${Math.ceil(state.player.pumpkin)}s`, 24, 392, 18, '#ffd23e', 'left', '900');
     // Stage name, small, bottom right.
-    text(`${stage.name}  •  BEST ${Math.max(best, Math.floor(state.score))}`, 1256, 440, 14, 'rgba(255,246,224,0.8)', 'right', '700');
+    text(`${stage.name}  •  BEST ${Math.max(best, Math.floor(state.score))}`, 1256, 440, 16, 'rgba(255,246,224,0.9)', 'right', '700');
     // Flash message, centre.
     if (state.flashTimer > 0 && state.flash) {
       const a = clamp(state.flashTimer, 0, 1);
@@ -2064,8 +2081,19 @@ export function createRenderer(canvas) {
         // no ghosts. Knives at or right of the panel (sx >= 470)
         // keep flying — a flat blade there would land on the panel
         // or the re-run prompt.
+        // A far knife still closing on the play screen gets forward
+        // lines along the knife-to-turkey line (cover: ~250 px away);
+        // a close one (the danger graze) keeps the true trail only.
+        let aim;
+        if (screen === SCREEN_PLAY && ka === 1) {
+          const tdx = TURKEY_X + TURKEY.width / 2 - sx;
+          if (tdx > 120) {
+            const tdy = FIELD.groundY - state.player.y - TURKEY.height / 2 - (FIELD.groundY - e.y);
+            aim = Math.atan2(tdy, tdx);
+          }
+        }
         if (ka > 0 && escaped && sx < 470) drawDroppedKnife(sx);
-        else if (ka > 0) drawKnife(sx, e.y, t, ka);
+        else if (ka > 0) drawKnife(sx, e.y, t, ka, aim);
       }
       if (passed) context.restore();
     }
