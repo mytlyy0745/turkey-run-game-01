@@ -292,6 +292,14 @@ export function createRenderer(canvas) {
     ellipse(tx + 40, 47, 36, 10, 'rgba(255,244,222,0.55)');
     const dx = 1132 + Math.sin(state.elapsed * 0.3) * 18;
     const dy = 128 + Math.sin(state.elapsed * 0.5) * 6;
+    // Title only: one small faint cloud right of the sun, in the
+    // last bare orange band; clear of disc, top cloud and birds.
+    if (screen === SCREEN_TITLE) {
+      const ux = 1185 + Math.sin(state.elapsed * 0.21 + 2) * 12;
+      ellipse(ux, 96, 38, 10, 'rgba(255,244,222,0.42)');
+      ellipse(ux - 27, 101, 25, 8, 'rgba(255,244,222,0.38)');
+      ellipse(ux + 29, 101, 27, 8, 'rgba(255,244,222,0.38)');
+    }
     const dflap = Math.sin(state.elapsed * 3.2) * 4;
     // Birds are sharp "V" gulls, not arcs: arcs in a row read as a
     // row of closed eyes (or a frowning mouth) at contact-sheet size.

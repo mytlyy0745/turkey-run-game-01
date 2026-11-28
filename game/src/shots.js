@@ -111,19 +111,9 @@ function hazardAhead(state, maxD) {
   return false;
 }
 
-// An oven fully inside the frame, clear of the turkey and the farmer
-// and of both edges: the cover needs a whole oven with its flames and
-// its OVEN! label in shot, not one sliding off the right edge. And no
-// oven just entering at the right edge either: a 26 px sliver of oven
-// plus a whole OVEN! label reads as a cropping accident, not a hazard.
-// The test is on the BODY, not the left edge: an oven at sx=1282
-// passed the old check (both old tests need sx < 1280) while its body
-// sat entirely off-screen and its flipped label floated in alone over
-// a pumpkin — that is exactly what seed 54's first pick showed, so
-// the rule is now "body fully inside the frame or the frame is out".
-// The probe counted 7 right-edge-clean leap frames in the 40 s pass
-// (out of 20 with an oven in frame), so the constraint still leaves a
-// max-height leap to pick from — it does not starve the cover.
+// Oven fully in frame (body test, not left edge): sx=1282 once
+// passed with its body off-screen and a floating label (seed 54),
+// so the rule is "body fully inside or the frame is out".
 function ovenInFrame(state) {
   let ok = false;
   for (const e of state.entities) {
